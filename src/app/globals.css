@@ -1,26 +1,78 @@
 @import "tailwindcss";
 
+/* Lirae Design System */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --wine: #9e2b38;
+  --wine-light: #b83d4b;
+  --wine-dark: #7a212b;
+  --near-black: #0d0809;
+  --charcoal: #1a1415;
+  --warm-gray: #2a2324;
+  --cream: #f4ebe6;
+  --cream-muted: #e8ddd7;
+  --white: #ffffff;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Colors */
+  --color-wine: var(--wine);
+  --color-wine-light: var(--wine-light);
+  --color-wine-dark: var(--wine-dark);
+  --color-near-black: var(--near-black);
+  --color-charcoal: var(--charcoal);
+  --color-warm-gray: var(--warm-gray);
+  --color-cream: var(--cream);
+  --color-cream-muted: var(--cream-muted);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Fonts */
+  --font-serif: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-outfit), system-ui, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--near-black);
+  color: var(--cream);
+  font-family: var(--font-outfit), system-ui, sans-serif;
+}
+
+/* Prose styling for reader */
+.prose-lirae {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: 1.125rem;
+  line-height: 1.8;
+  color: var(--cream);
+}
+
+.prose-lirae p {
+  margin-bottom: 1.5rem;
+}
+
+/* Selection styling */
+::selection {
+  background-color: var(--wine);
+  color: var(--cream);
+}
+
+/* Focus styling */
+:focus-visible {
+  outline: 2px solid var(--wine);
+  outline-offset: 2px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--charcoal);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--warm-gray);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--wine);
 }
