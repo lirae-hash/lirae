@@ -1,5 +1,6 @@
 -- Lirae Database Schema
 -- Run this in your Supabase SQL Editor
+-- Safe to re-run (idempotent)
 
 -- Readers (extends auth.users)
 create table if not exists profiles (
@@ -13,14 +14,17 @@ create table if not exists profiles (
 alter table profiles enable row level security;
 
 -- Profiles policies
+drop policy if exists "Users can view own profile" on profiles;
 create policy "Users can view own profile"
   on profiles for select
   using (auth.uid() = id);
 
+drop policy if exists "Users can update own profile" on profiles;
 create policy "Users can update own profile"
   on profiles for update
   using (auth.uid() = id);
 
+drop policy if exists "Users can insert own profile" on profiles;
 create policy "Users can insert own profile"
   on profiles for insert
   with check (auth.uid() = id);
@@ -35,7 +39,8 @@ begin
 end;
 $$ language plpgsql security definer;
 
-create or replace trigger on_auth_user_created
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
@@ -55,6 +60,7 @@ create table if not exists adventures (
 alter table adventures enable row level security;
 
 -- Adventures policies (public read for published)
+drop policy if exists "Anyone can view published adventures" on adventures;
 create policy "Anyone can view published adventures"
   on adventures for select
   using (published = true);
@@ -78,14 +84,17 @@ create table if not exists playthroughs (
 alter table playthroughs enable row level security;
 
 -- Playthroughs policies
+drop policy if exists "Users can view own playthroughs" on playthroughs;
 create policy "Users can view own playthroughs"
   on playthroughs for select
   using (auth.uid() = reader_id);
 
+drop policy if exists "Users can create own playthroughs" on playthroughs;
 create policy "Users can create own playthroughs"
   on playthroughs for insert
   with check (auth.uid() = reader_id);
 
+drop policy if exists "Users can update own playthroughs" on playthroughs;
 create policy "Users can update own playthroughs"
   on playthroughs for update
   using (auth.uid() = reader_id);
@@ -109,6 +118,7 @@ create table if not exists chapters_cache (
 alter table chapters_cache enable row level security;
 
 -- Chapters cache policies (public read)
+drop policy if exists "Anyone can view cached chapters" on chapters_cache;
 create policy "Anyone can view cached chapters"
   on chapters_cache for select
   using (true);
@@ -129,10 +139,12 @@ create table if not exists purchases (
 alter table purchases enable row level security;
 
 -- Purchases policies
+drop policy if exists "Users can view own purchases" on purchases;
 create policy "Users can view own purchases"
   on purchases for select
   using (auth.uid() = reader_id);
 
+drop policy if exists "Users can create own purchases" on purchases;
 create policy "Users can create own purchases"
   on purchases for insert
   with check (auth.uid() = reader_id);
