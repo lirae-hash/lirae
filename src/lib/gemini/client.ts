@@ -58,6 +58,8 @@ export async function generateText(prompt: string): Promise<string> {
               topK: 40,
               maxOutputTokens: 8192,
             },
+            // Relaxed safety settings for romance content
+            // The app has its own content controls via spice levels
             safetySettings: [
               {
                 category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
@@ -65,15 +67,15 @@ export async function generateText(prompt: string): Promise<string> {
               },
               {
                 category: "HARM_CATEGORY_HATE_SPEECH",
-                threshold: "BLOCK_MEDIUM_AND_ABOVE",
+                threshold: "BLOCK_ONLY_HIGH",
               },
               {
                 category: "HARM_CATEGORY_HARASSMENT",
-                threshold: "BLOCK_MEDIUM_AND_ABOVE",
+                threshold: "BLOCK_ONLY_HIGH",
               },
               {
                 category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-                threshold: "BLOCK_MEDIUM_AND_ABOVE",
+                threshold: "BLOCK_ONLY_HIGH",
               },
             ],
           }),
@@ -109,6 +111,15 @@ export async function generateText(prompt: string): Promise<string> {
       const candidate = data.candidates[0];
       if (!candidate.content || !candidate.content.parts || candidate.content.parts.length === 0) {
         console.error("Gemini response with empty content:", JSON.stringify(data, null, 2));
+
+        // Retry on empty content (can be transient safety filter issues)
+        if (attempt < MAX_RETRIES - 1) {
+          const backoffMs = Math.min(INITIAL_BACKOFF_MS * Math.pow(2, attempt), MAX_BACKOFF_MS);
+          console.log(`Empty content response, retrying in ${backoffMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+          await sleep(backoffMs);
+          continue;
+        }
+
         throw new Error("Gemini returned empty content - may have been blocked by safety filters");
       }
 
