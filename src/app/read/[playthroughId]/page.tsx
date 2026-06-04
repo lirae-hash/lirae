@@ -9,14 +9,23 @@ import { Paywall } from "@/components/Paywall";
 import { createClient } from "@/lib/supabase/client";
 
 // Strip choice and card quote markers from streamed prose
+// Must handle mid-stream text where CHOICE_ might not be at line start
 function cleanStreamedProse(text: string): string {
+  // Find where CHOICE_ content starts and cut everything from there
+  // This handles streaming where choices run together without newlines
+  const choiceStart = text.search(/CHOICE_[123ABC]:/i);
+  if (choiceStart > 0) {
+    text = text.slice(0, choiceStart);
+  }
+
+  // Also handle CARD_QUOTE if it appears
+  const cardQuoteStart = text.search(/CARD_QUOTE:/i);
+  if (cardQuoteStart > 0) {
+    text = text.slice(0, cardQuoteStart);
+  }
+
+  // Clean up extra whitespace
   return text
-    // Remove CHOICE lines (CHOICE_1:, CHOICE_2:, CHOICE_3:, CHOICE_A:, etc.)
-    .replace(/^CHOICE_[123ABC]:\s*.*/gim, "")
-    // Remove CARD_QUOTE lines
-    .replace(/^CARD_QUOTE:\s*.*/gim, "")
-    .replace(/^CARD_QUOTE_SPEAKER:\s*.*/gim, "")
-    // Clean up extra whitespace
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
