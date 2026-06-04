@@ -8,12 +8,8 @@ export async function POST(request: Request) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    }
-
     const body = await request.json();
-    const { playthroughId, choice, finalWords } = body as {
+    const { playthroughId, choice, finalWords, anonymousToken } = body as {
       playthroughId: string;
       choice: {
         id: string;
@@ -21,6 +17,7 @@ export async function POST(request: Request) {
         tag: "open" | "guarded";
       };
       finalWords?: string | null;
+      anonymousToken?: string;
     };
 
     if (!playthroughId || !choice) {
@@ -30,16 +27,47 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch current playthrough
-    const { data: playthrough, error: ptError } = await supabase
-      .from("playthroughs")
-      .select("*")
-      .eq("id", playthroughId)
-      .eq("reader_id", user.id)
-      .single();
+    // Fetch current playthrough - handle both authenticated and anonymous
+    let playthrough;
 
-    if (ptError || !playthrough) {
-      return NextResponse.json({ error: "Playthrough not found" }, { status: 404 });
+    if (user) {
+      const { data, error } = await supabase
+        .from("playthroughs")
+        .select("*")
+        .eq("id", playthroughId)
+        .or(`reader_id.eq.${user.id},and(reader_id.is.null,anonymous_token.eq.${anonymousToken || ''})`)
+        .single();
+
+      if (error || !data) {
+        return NextResponse.json({ error: "Playthrough not found" }, { status: 404 });
+      }
+      playthrough = data;
+    } else if (anonymousToken) {
+      const { data, error } = await supabase
+        .from("playthroughs")
+        .select("*")
+        .eq("id", playthroughId)
+        .is("reader_id", null)
+        .eq("anonymous_token", anonymousToken)
+        .single();
+
+      if (error || !data) {
+        return NextResponse.json({ error: "Playthrough not found" }, { status: 404 });
+      }
+      playthrough = data;
+    } else {
+      return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+    }
+
+    // Calculate next chapter
+    const nextChapter = playthrough.current_chapter + 1;
+
+    // AUTH GATE: If progressing to chapter 4+, require authentication
+    if (nextChapter >= 4 && !user) {
+      return NextResponse.json(
+        { error: "Sign in required to continue", code: "AUTH_REQUIRED", nextChapter },
+        { status: 401 }
+      );
     }
 
     // Append choice to log
@@ -52,9 +80,6 @@ export async function POST(request: Request) {
         tag: choice.tag,
       },
     ];
-
-    // Advance to next chapter
-    const nextChapter = playthrough.current_chapter + 1;
 
     // Determine ending when reaching chapter 10
     let ending: Ending | null = null;
@@ -70,7 +95,7 @@ export async function POST(request: Request) {
       .update({
         choice_log: newChoiceLog,
         current_chapter: nextChapter,
-        ending: ending || playthrough.ending, // Keep existing ending if already set
+        ending: ending || playthrough.ending,
         final_words: finalWords !== undefined ? finalWords : playthrough.final_words,
         updated_at: new Date().toISOString(),
       })

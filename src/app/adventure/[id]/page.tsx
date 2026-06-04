@@ -75,12 +75,12 @@ export default function AdventureSetupPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        if (res.status === 401) {
-          // Redirect to sign in
-          router.push(`/auth/sign-in?next=/adventure/${adventureId}`);
-          return;
-        }
         throw new Error(data.error || "Failed to start adventure");
+      }
+
+      // Store anonymous token if provided (for unauthenticated users)
+      if (data.anonymousToken) {
+        localStorage.setItem(`lirae_anon_${data.playthrough.id}`, data.anonymousToken);
       }
 
       // Redirect to reader

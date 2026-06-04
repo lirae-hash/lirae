@@ -85,7 +85,7 @@ export interface Database {
       playthroughs: {
         Row: {
           id: string;
-          reader_id: string;
+          reader_id: string | null;
           adventure_id: string;
           vibe: Vibe;
           archetype: HeroArchetype;
@@ -95,12 +95,13 @@ export interface Database {
           current_chapter: number;
           ending: Ending | null;
           final_words: string | null;
+          anonymous_token: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
-          reader_id: string;
+          reader_id?: string | null;
           adventure_id: string;
           vibe: Vibe;
           archetype: HeroArchetype;
@@ -110,12 +111,13 @@ export interface Database {
           current_chapter?: number;
           ending?: Ending | null;
           final_words?: string | null;
+          anonymous_token?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
-          reader_id?: string;
+          reader_id?: string | null;
           adventure_id?: string;
           vibe?: Vibe;
           archetype?: HeroArchetype;
@@ -125,6 +127,7 @@ export interface Database {
           current_chapter?: number;
           ending?: Ending | null;
           final_words?: string | null;
+          anonymous_token?: string | null;
           created_at?: string;
           updated_at?: string;
         };

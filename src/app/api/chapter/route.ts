@@ -43,14 +43,11 @@ export async function POST(request: Request) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    }
-
     const body = await request.json();
-    const { playthroughId, chapterNo } = body as {
+    const { playthroughId, chapterNo, anonymousToken } = body as {
       playthroughId: string;
       chapterNo: number;
+      anonymousToken?: string;
     };
 
     if (!playthroughId || !chapterNo) {
@@ -60,23 +57,53 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch playthrough with adventure details
-    const { data: playthrough, error: ptError } = await supabase
-      .from("playthroughs")
-      .select("*, adventures(cover_image_url)")
-      .eq("id", playthroughId)
-      .eq("reader_id", user.id)
-      .single();
+    // AUTH GATE: Chapter 4+ requires authentication
+    if (chapterNo >= 4 && !user) {
+      return NextResponse.json(
+        { error: "Sign in required to continue", code: "AUTH_REQUIRED" },
+        { status: 401 }
+      );
+    }
 
-    if (ptError || !playthrough) {
-      return NextResponse.json({ error: "Playthrough not found" }, { status: 404 });
+    // Fetch playthrough - handle both authenticated and anonymous access
+    let playthrough;
+
+    if (user) {
+      // Authenticated user - can access their own playthroughs
+      const { data, error } = await supabase
+        .from("playthroughs")
+        .select("*, adventures(cover_image_url)")
+        .eq("id", playthroughId)
+        .or(`reader_id.eq.${user.id},and(reader_id.is.null,anonymous_token.eq.${anonymousToken || ''})`)
+        .single();
+
+      if (error || !data) {
+        return NextResponse.json({ error: "Playthrough not found" }, { status: 404 });
+      }
+      playthrough = data;
+    } else if (anonymousToken && chapterNo <= 3) {
+      // Anonymous user accessing chapters 1-3 with token
+      const { data, error } = await supabase
+        .from("playthroughs")
+        .select("*, adventures(cover_image_url)")
+        .eq("id", playthroughId)
+        .is("reader_id", null)
+        .eq("anonymous_token", anonymousToken)
+        .single();
+
+      if (error || !data) {
+        return NextResponse.json({ error: "Playthrough not found" }, { status: 404 });
+      }
+      playthrough = data;
+    } else {
+      return NextResponse.json({ error: "Not authorized" }, { status: 401 });
     }
 
     // Get scene image URL based on chapter archetype + vibe
     const sceneImageUrl = getSceneImageUrl(playthrough.adventure_id, chapterNo, playthrough.vibe);
 
-    // Check paywall (chapters 4+ require purchase)
-    if (chapterNo >= 4) {
+    // PAYWALL: Chapters 4+ require purchase (after auth check)
+    if (chapterNo >= 4 && user) {
       const { data: purchase } = await supabase
         .from("purchases")
         .select("status")
@@ -116,7 +143,6 @@ export async function POST(request: Request) {
       .single();
 
     if (cached) {
-      // Note: cached chapters don't have cardQuote - only freshly generated ch10 does
       return NextResponse.json({
         chapter: {
           number: chapterNo,
@@ -160,7 +186,6 @@ export async function POST(request: Request) {
     }
 
     // Cache the chapter
-    // Note: card_quote fields not cached yet (would need DB migration)
     const { error: cacheError } = await supabase.from("chapters_cache").insert({
       adventure_id: playthrough.adventure_id,
       chapter_no: chapterNo,
@@ -174,7 +199,6 @@ export async function POST(request: Request) {
 
     if (cacheError) {
       console.error("Cache insert error:", cacheError);
-      // Don't fail the request, just log
     }
 
     return NextResponse.json({

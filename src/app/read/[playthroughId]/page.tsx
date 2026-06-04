@@ -6,6 +6,7 @@ import Link from "next/link";
 import { toPng } from "html-to-image";
 import { AgeGate } from "@/components/AgeGate";
 import { Paywall } from "@/components/Paywall";
+import { createClient } from "@/lib/supabase/client";
 
 // Archetype display names
 const ARCHETYPE_NAMES: Record<string, string> = {
@@ -35,6 +36,120 @@ const ENDING_CONFIG = {
     emoji: "\uD83D\uDDA4",
   },
 };
+
+// Sign In Modal for chapter 4 auth gate
+function SignInModal({
+  onClose,
+  playthroughId,
+  onSignInSuccess
+}: {
+  onClose: () => void;
+  playthroughId: string;
+  onSignInSuccess: () => void;
+}) {
+  const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim()) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/read/${playthroughId}`,
+        },
+      });
+
+      if (error) throw error;
+      setEmailSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send magic link");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  if (emailSent) {
+    return (
+      <div className="fixed inset-0 bg-near-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-charcoal border border-warm-gray rounded-2xl p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-wine/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg className="w-8 h-8 text-wine" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h2 className="font-serif text-2xl text-cream mb-4">Check your email</h2>
+          <p className="text-cream-muted mb-6">
+            We sent a magic link to <span className="text-cream">{email}</span>.
+            Click it to continue your story.
+          </p>
+          <p className="text-cream-muted text-sm">
+            Your progress is saved. The link will bring you right back here.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-near-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-charcoal border border-warm-gray rounded-2xl p-8 max-w-md w-full">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-cream-muted hover:text-cream"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        <h2 className="font-serif text-2xl text-cream mb-2 text-center">
+          The story deepens...
+        </h2>
+        <p className="text-cream-muted text-center mb-6">
+          Sign in to continue reading and save your progress.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              className="w-full px-4 py-3 bg-near-black border border-warm-gray rounded-lg text-cream placeholder:text-warm-gray focus:border-wine focus:outline-none transition-colors"
+              required
+            />
+          </div>
+
+          {error && (
+            <p className="text-wine text-sm text-center">{error}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={isLoading || !email.trim()}
+            className="w-full py-3 bg-wine hover:bg-wine-light disabled:bg-warm-gray text-cream font-medium rounded-lg transition-colors"
+          >
+            {isLoading ? "Sending..." : "Continue with magic link"}
+          </button>
+        </form>
+
+        <p className="text-cream-muted text-xs text-center mt-4">
+          No password needed. We&apos;ll email you a link.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 // Premium shareable ending card
 function EndingCard({
@@ -71,14 +186,10 @@ function EndingCard({
   const config = ENDING_CONFIG[ending as keyof typeof ENDING_CONFIG] || ENDING_CONFIG.hfn;
   const archetypeName = ARCHETYPE_NAMES[archetype] || "The Love Interest";
 
-  // Use the AI-selected card quote from the chapter, with proper attribution
-  // cardQuoteSpeaker will be the hero's name, protagonist's name, or "Narration"
   const displayQuote = cardQuote || config.fallbackQuote;
 
-  // Format attribution: show speaker name unless it's narration
   let quoteAttribution: string | null = null;
   if (cardQuoteSpeaker && cardQuoteSpeaker.toLowerCase() !== "narration") {
-    // If speaker is "Her" or protagonist name, use protagonist name or "Me"
     if (cardQuoteSpeaker.toLowerCase() === "her" || cardQuoteSpeaker === protagonistName) {
       quoteAttribution = protagonistName || "Me";
     } else {
@@ -86,10 +197,8 @@ function EndingCard({
     }
   }
 
-  // Scene image URL for the resolution scene
   const sceneImageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scene-images/${adventureId}/resolution_${vibe}.png`;
 
-  // Load and convert scene image to base64 for html-to-image compatibility
   useEffect(() => {
     async function loadImage() {
       try {
@@ -107,7 +216,6 @@ function EndingCard({
     loadImage();
   }, [sceneImageUrl]);
 
-  // Check if Web Share API is available
   useEffect(() => {
     setCanShare(typeof navigator !== "undefined" && !!navigator.share);
   }, []);
@@ -152,7 +260,6 @@ function EndingCard({
         backgroundColor: "#0f0f0f",
       });
 
-      // Convert data URL to blob
       const res = await fetch(dataUrl);
       const blob = await res.blob();
       const file = new File([blob], `lirae-${ending || "ending"}.png`, { type: "image/png" });
@@ -163,7 +270,6 @@ function EndingCard({
         files: [file],
       });
     } catch (err) {
-      // User cancelled or share failed - not an error
       if ((err as Error).name !== "AbortError") {
         console.error("Share failed:", err);
       }
@@ -194,7 +300,6 @@ function EndingCard({
 
   return (
     <div className="mt-12 pt-8 border-t border-warm-gray">
-      {/* ===== SHAREABLE CARD (exported as image) ===== */}
       <div
         ref={cardRef}
         style={{
@@ -208,7 +313,6 @@ function EndingCard({
           backgroundColor: "#0f0f0f",
         }}
       >
-        {/* Scene image background (base64 for html-to-image compatibility) */}
         {imageDataUrl && (
           <div
             style={{
@@ -224,7 +328,6 @@ function EndingCard({
             }}
           />
         )}
-        {/* Dark gradient overlay for readability */}
         <div
           style={{
             position: "absolute",
@@ -236,9 +339,7 @@ function EndingCard({
           }}
         />
 
-        {/* Content */}
         <div style={{ position: "relative", zIndex: 1, textAlign: "center" }}>
-          {/* The End label */}
           <p
             style={{
               color: vibeAccents[vibe] || vibeAccents.dark,
@@ -252,7 +353,6 @@ function EndingCard({
             The End
           </p>
 
-          {/* Ending title */}
           <h2
             style={{
               color: "#f5f5dc",
@@ -266,7 +366,6 @@ function EndingCard({
             {config.title}
           </h2>
 
-          {/* Protagonist name if provided */}
           {protagonistName && (
             <p
               style={{
@@ -280,7 +379,6 @@ function EndingCard({
             </p>
           )}
 
-          {/* Archetype */}
           <p
             style={{
               color: "#a8a29e",
@@ -293,7 +391,6 @@ function EndingCard({
             <span style={{ color: "#8b2252", fontWeight: 500 }}>{archetypeName}</span>
           </p>
 
-          {/* Hero quote - the star of the card */}
           <div
             style={{
               background: "rgba(15, 15, 15, 0.6)",
@@ -331,7 +428,6 @@ function EndingCard({
             )}
           </div>
 
-          {/* Adventure title */}
           <p
             style={{
               color: "#78716c",
@@ -343,7 +439,6 @@ function EndingCard({
             {adventureTitle}
           </p>
 
-          {/* Lirae branding */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
             <span
               style={{
@@ -367,7 +462,6 @@ function EndingCard({
         </div>
       </div>
 
-      {/* ===== SHARE ACTIONS ===== */}
       <div className="mt-8 text-center">
         <div className="flex flex-col sm:flex-row gap-3 justify-center mb-6">
           <button
@@ -408,7 +502,6 @@ function EndingCard({
         </div>
       </div>
 
-      {/* ===== INVITE A FRIEND ===== */}
       <div className="mt-8 p-6 border border-warm-gray rounded-xl bg-charcoal/30 text-center">
         <p className="text-cream font-serif text-lg mb-2">Give a friend their own adventure</p>
         <p className="text-cream-muted text-sm mb-4">
@@ -422,7 +515,6 @@ function EndingCard({
         </Link>
       </div>
 
-      {/* ===== REWIND (heartbreak only) ===== */}
       {ending === "heartbreak" && (
         <div className="mt-6 p-4 border border-warm-gray rounded-lg bg-near-black/50 text-center">
           <p className="text-cream-muted text-sm mb-3">
@@ -438,7 +530,6 @@ function EndingCard({
         </div>
       )}
 
-      {/* ===== BACK TO LIBRARY ===== */}
       <div className="mt-6 text-center">
         <Link
           href="/library"
@@ -493,15 +584,35 @@ export default function ReaderPage() {
   const [selectedChoice, setSelectedChoice] = useState<Choice | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [showSignIn, setShowSignIn] = useState(false);
   const [finalWords, setFinalWords] = useState("");
+  const [anonymousToken, setAnonymousToken] = useState<string | null>(null);
+
+  // Get anonymous token from localStorage on mount
+  useEffect(() => {
+    const token = localStorage.getItem(`lirae_anon_${playthroughId}`);
+    setAnonymousToken(token);
+  }, [playthroughId]);
 
   const fetchPlaythrough = useCallback(async () => {
     try {
-      const res = await fetch(`/api/playthrough?id=${playthroughId}`);
+      const token = localStorage.getItem(`lirae_anon_${playthroughId}`);
+      const url = token
+        ? `/api/playthrough?id=${playthroughId}&token=${encodeURIComponent(token)}`
+        : `/api/playthrough?id=${playthroughId}`;
+
+      const res = await fetch(url);
       const data = await res.json();
 
       if (!res.ok) {
         if (res.status === 401) {
+          // Try without token for authenticated users
+          const authRes = await fetch(`/api/playthrough?id=${playthroughId}`);
+          if (authRes.ok) {
+            const authData = await authRes.json();
+            setPlaythrough(authData.playthrough);
+            return authData.playthrough;
+          }
           router.push("/auth/sign-in");
           return;
         }
@@ -521,18 +632,24 @@ export default function ReaderPage() {
     setError(null);
 
     try {
+      const token = localStorage.getItem(`lirae_anon_${playthroughId}`);
       const res = await fetch("/api/chapter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           playthroughId: pt.id,
           chapterNo: pt.current_chapter,
+          anonymousToken: token,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.code === "AUTH_REQUIRED") {
+          setShowSignIn(true);
+          return;
+        }
         if (data.code === "PAYWALL") {
           setShowPaywall(true);
           return;
@@ -541,14 +658,14 @@ export default function ReaderPage() {
       }
 
       setShowPaywall(false);
-
+      setShowSignIn(false);
       setChapter(data.chapter);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setIsLoadingChapter(false);
     }
-  }, []);
+  }, [playthroughId]);
 
   useEffect(() => {
     async function init() {
@@ -562,27 +679,60 @@ export default function ReaderPage() {
     init();
   }, [fetchPlaythrough, fetchChapter]);
 
+  // After sign-in, claim the playthrough and continue
+  async function handleSignInSuccess() {
+    const token = localStorage.getItem(`lirae_anon_${playthroughId}`);
+    if (token) {
+      try {
+        // Claim the anonymous playthrough
+        await fetch("/api/claim-playthrough", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ playthroughId, anonymousToken: token }),
+        });
+        // Clear the anonymous token
+        localStorage.removeItem(`lirae_anon_${playthroughId}`);
+        setAnonymousToken(null);
+      } catch (err) {
+        console.error("Failed to claim playthrough:", err);
+      }
+    }
+    // Refresh to continue
+    setShowSignIn(false);
+    const pt = await fetchPlaythrough();
+    if (pt) {
+      await fetchChapter(pt);
+    }
+  }
+
   async function handleChoice(choice: Choice) {
     setSelectedChoice(choice);
     setIsSubmitting(true);
 
     try {
+      const token = localStorage.getItem(`lirae_anon_${playthroughId}`);
       const res = await fetch("/api/choice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           playthroughId,
           choice,
+          anonymousToken: token,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.code === "AUTH_REQUIRED") {
+          setShowSignIn(true);
+          setSelectedChoice(null);
+          setIsSubmitting(false);
+          return;
+        }
         throw new Error(data.error || "Failed to submit choice");
       }
 
-      // Update playthrough and fetch next chapter
       setPlaythrough(data.playthrough);
       setChapter(null);
       setSelectedChoice(null);
@@ -626,6 +776,15 @@ export default function ReaderPage() {
   return (
     <AgeGate>
       <main className="min-h-screen">
+        {/* Sign In Modal */}
+        {showSignIn && (
+          <SignInModal
+            playthroughId={playthroughId}
+            onClose={() => setShowSignIn(false)}
+            onSignInSuccess={handleSignInSuccess}
+          />
+        )}
+
         {/* Header */}
         <header className="sticky top-0 z-10 bg-near-black/95 backdrop-blur border-b border-warm-gray">
           <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -675,7 +834,7 @@ export default function ReaderPage() {
         )}
 
         {/* Scene Image */}
-        {!showPaywall && chapter?.sceneImageUrl && (
+        {!showPaywall && !showSignIn && chapter?.sceneImageUrl && (
           <div className="w-full h-64 md:h-80 bg-charcoal relative overflow-hidden">
             <img
               src={chapter.sceneImageUrl}
@@ -687,7 +846,7 @@ export default function ReaderPage() {
         )}
 
         {/* Chapter Content */}
-        {!showPaywall && (
+        {!showPaywall && !showSignIn && (
         <article className="max-w-2xl mx-auto px-6 py-12">
           {isLoadingChapter ? (
             <div className="text-center py-20">
@@ -748,7 +907,7 @@ export default function ReaderPage() {
                 </div>
               )}
 
-              {/* Chapter 9 - Free text input: "What do you say to him?" */}
+              {/* Chapter 9 - Free text input */}
               {(!chapter.choices || chapter.choices.length === 0) && playthrough && playthrough.current_chapter === 9 && (
                 <div className="mt-12 pt-8 border-t border-warm-gray">
                   <p className="text-cream text-center mb-4 font-serif italic text-lg">
@@ -763,9 +922,9 @@ export default function ReaderPage() {
                   <div className="text-center mt-6">
                     <button
                       onClick={async () => {
-                        // Save final words and advance
                         setIsSubmitting(true);
                         try {
+                          const token = localStorage.getItem(`lirae_anon_${playthroughId}`);
                           const res = await fetch("/api/choice", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
@@ -773,6 +932,7 @@ export default function ReaderPage() {
                               playthroughId,
                               choice: { id: "continue", text: "Continue", tag: "open" },
                               finalWords: finalWords.trim() || null,
+                              anonymousToken: token,
                             }),
                           });
                           const data = await res.json();
@@ -795,7 +955,7 @@ export default function ReaderPage() {
                 </div>
               )}
 
-              {/* End of story - after chapter 10 with no choices */}
+              {/* End of story */}
               {playthrough && playthrough.current_chapter === 10 && (!chapter?.choices || chapter.choices.length === 0) && (
                 <EndingCard
                   ending={playthrough.ending}

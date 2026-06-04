@@ -1,15 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import type { Vibe, SpiceLevel, HeroArchetype } from "@/types/database";
+import crypto from "crypto";
 
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    }
 
     const body = await request.json();
     const { adventureId, vibe, archetype, spice, protagonistName } = body as {
@@ -44,11 +41,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid spice level" }, { status: 400 });
     }
 
-    // Create playthrough
+    // Generate anonymous token for unauthenticated users
+    const anonymousToken = user ? null : crypto.randomBytes(32).toString("hex");
+
+    // Create playthrough (with or without user)
     const { data, error } = await supabase
       .from("playthroughs")
       .insert({
-        reader_id: user.id,
+        reader_id: user?.id || null,
         adventure_id: adventureId,
         vibe,
         archetype,
@@ -56,6 +56,7 @@ export async function POST(request: Request) {
         protagonist_name: protagonistName || null,
         choice_log: [],
         current_chapter: 1,
+        anonymous_token: anonymousToken,
       })
       .select()
       .single();
@@ -65,7 +66,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ playthrough: data });
+    // Return the anonymous token so client can store it
+    return NextResponse.json({
+      playthrough: data,
+      anonymousToken: anonymousToken,
+    });
   } catch (err) {
     console.error("Playthrough creation error:", err);
     return NextResponse.json(
@@ -80,21 +85,29 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const playthroughId = searchParams.get("id");
+    const anonymousToken = searchParams.get("token");
 
     if (playthroughId) {
-      // Get specific playthrough with adventure title
-      const { data, error } = await supabase
+      // Get specific playthrough - allow if user owns it OR if anonymous token matches
+      let query = supabase
         .from("playthroughs")
         .select("*, adventures(title)")
-        .eq("id", playthroughId)
-        .eq("reader_id", user.id)
-        .single();
+        .eq("id", playthroughId);
+
+      // Build the ownership check
+      if (user) {
+        // Logged in user can access their own playthroughs
+        query = query.or(`reader_id.eq.${user.id},and(reader_id.is.null,anonymous_token.eq.${anonymousToken || ''})`);
+      } else if (anonymousToken) {
+        // Anonymous user can access with token
+        query = query.is("reader_id", null).eq("anonymous_token", anonymousToken);
+      } else {
+        return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+      }
+
+      const { data, error } = await query.single();
 
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 404 });
@@ -110,7 +123,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ playthrough });
     }
 
-    // Get all user's playthroughs
+    // Get all user's playthroughs (requires auth)
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
     const { data, error } = await supabase
       .from("playthroughs")
       .select("*")
