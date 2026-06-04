@@ -19,6 +19,7 @@ interface PromptParams {
   protagonistName: string | null;
   choiceLog: ChoiceLogEntry[];
   ending?: "hea" | "hfn" | "heartbreak" | null;
+  finalWords?: string | null;
 }
 
 const ENDING_RULES: Record<string, string> = {
@@ -64,7 +65,7 @@ function renderChoiceLog(choiceLog: ChoiceLogEntry[]): string {
 }
 
 export function buildChapterPrompt(params: PromptParams): string {
-  const { chapterNo, settingSheet, vibe, archetype, spice, protagonistName, choiceLog, ending } = params;
+  const { chapterNo, settingSheet, vibe, archetype, spice, protagonistName, choiceLog, ending, finalWords } = params;
   const beat = getBeat(chapterNo);
 
   if (!beat) {
@@ -74,8 +75,17 @@ export function buildChapterPrompt(params: PromptParams): string {
   const vibeNote = settingSheet.vibeNotes[vibe] || VIBE_RULES[vibe];
   const archetypeInfo = ARCHETYPE_RULES[archetype];
 
-  // For chapter 10, include ending-specific guidance
-  const endingGuidance = chapterNo === 10 && ending ? `\n${ENDING_RULES[ending]}\n` : "";
+  // For chapter 10, include ending-specific guidance and final words
+  let endingGuidance = chapterNo === 10 && ending ? `\n${ENDING_RULES[ending]}\n` : "";
+
+  if (chapterNo === 10 && finalWords) {
+    endingGuidance += `
+THE READER'S FINAL WORDS TO HIM:
+Before this chapter begins, she said: "${finalWords}"
+
+CRITICAL: You MUST incorporate her actual words into the scene. Have her speak them — or a version of them — directly to him. Then write his response to those specific words and build the final scene around that emotional exchange. Her words are the heart of this ending.
+`;
+  }
 
   const prompt = `You are generating Chapter ${beat.number} of a Lirae interactive romance.${endingGuidance}
 

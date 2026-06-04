@@ -13,13 +13,14 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { playthroughId, choice } = body as {
+    const { playthroughId, choice, finalWords } = body as {
       playthroughId: string;
       choice: {
         id: string;
         text: string;
         tag: "open" | "guarded";
       };
+      finalWords?: string | null;
     };
 
     if (!playthroughId || !choice) {
@@ -70,6 +71,7 @@ export async function POST(request: Request) {
         choice_log: newChoiceLog,
         current_chapter: nextChapter,
         ending: ending || playthrough.ending, // Keep existing ending if already set
+        final_words: finalWords !== undefined ? finalWords : playthrough.final_words,
         updated_at: new Date().toISOString(),
       })
       .eq("id", playthroughId)

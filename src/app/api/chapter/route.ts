@@ -137,6 +137,7 @@ export async function POST(request: Request) {
       protagonistName: playthrough.protagonist_name,
       choiceLog,
       ending: chapterNo === 10 ? (playthrough.ending as "hea" | "hfn" | "heartbreak" | null) : null,
+      finalWords: chapterNo === 10 ? playthrough.final_words : null,
     });
 
     console.log("=== CHAPTER GENERATION DEBUG ===");

@@ -94,6 +94,7 @@ export interface Database {
           choice_log: ChoiceLogEntry[];
           current_chapter: number;
           ending: Ending | null;
+          final_words: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -108,6 +109,7 @@ export interface Database {
           choice_log?: ChoiceLogEntry[];
           current_chapter?: number;
           ending?: Ending | null;
+          final_words?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -122,6 +124,7 @@ export interface Database {
           choice_log?: ChoiceLogEntry[];
           current_chapter?: number;
           ending?: Ending | null;
+          final_words?: string | null;
           created_at?: string;
           updated_at?: string;
         };

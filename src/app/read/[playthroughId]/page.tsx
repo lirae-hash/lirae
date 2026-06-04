@@ -129,6 +129,7 @@ export default function ReaderPage() {
   const [selectedChoice, setSelectedChoice] = useState<Choice | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [finalWords, setFinalWords] = useState("");
 
   const fetchPlaythrough = useCallback(async () => {
     try {
@@ -364,12 +365,11 @@ export default function ReaderPage() {
                 </div>
               )}
 
-              {/* No choices (beat 5, 9, 10) */}
-              {(!chapter.choices || chapter.choices.length === 0) && playthrough && playthrough.current_chapter < 10 && (
+              {/* No choices - Chapter 5 just continues */}
+              {(!chapter.choices || chapter.choices.length === 0) && playthrough && playthrough.current_chapter === 5 && (
                 <div className="mt-12 pt-8 border-t border-warm-gray text-center">
                   <button
                     onClick={() => {
-                      // For no-choice beats, advance with a placeholder choice
                       handleChoice({
                         id: "continue",
                         text: "Continue",
@@ -381,6 +381,53 @@ export default function ReaderPage() {
                   >
                     {isSubmitting ? "Turning the page..." : "Continue"}
                   </button>
+                </div>
+              )}
+
+              {/* Chapter 9 - Free text input: "What do you say to him?" */}
+              {(!chapter.choices || chapter.choices.length === 0) && playthrough && playthrough.current_chapter === 9 && (
+                <div className="mt-12 pt-8 border-t border-warm-gray">
+                  <p className="text-cream text-center mb-4 font-serif italic text-lg">
+                    Before everything changes — what do you say to him?
+                  </p>
+                  <textarea
+                    value={finalWords}
+                    onChange={(e) => setFinalWords(e.target.value)}
+                    placeholder="Type what you want to say... or leave blank to let the moment speak for itself."
+                    className="w-full px-4 py-3 bg-near-black border border-warm-gray rounded-lg text-cream placeholder:text-warm-gray focus:border-wine focus:outline-none transition-colors resize-none h-32 font-serif"
+                  />
+                  <div className="text-center mt-6">
+                    <button
+                      onClick={async () => {
+                        // Save final words and advance
+                        setIsSubmitting(true);
+                        try {
+                          const res = await fetch("/api/choice", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              playthroughId,
+                              choice: { id: "continue", text: "Continue", tag: "open" },
+                              finalWords: finalWords.trim() || null,
+                            }),
+                          });
+                          const data = await res.json();
+                          if (!res.ok) throw new Error(data.error);
+                          setPlaythrough(data.playthrough);
+                          setChapter(null);
+                          await fetchChapter(data.playthrough);
+                        } catch (err) {
+                          setError(err instanceof Error ? err.message : "Something went wrong");
+                        } finally {
+                          setIsSubmitting(false);
+                        }
+                      }}
+                      disabled={isSubmitting}
+                      className="px-8 py-3 bg-wine hover:bg-wine-light disabled:bg-warm-gray text-cream font-medium rounded-lg transition-colors"
+                    >
+                      {isSubmitting ? "Writing your ending..." : "Say it"}
+                    </button>
+                  </div>
                 </div>
               )}
 
