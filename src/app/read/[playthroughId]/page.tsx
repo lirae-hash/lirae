@@ -42,6 +42,8 @@ function EndingCard({
   vibe,
   archetype,
   adventureTitle,
+  adventureId,
+  heroName,
   protagonistName,
   finalWords,
   lastLine,
@@ -51,6 +53,8 @@ function EndingCard({
   vibe: string;
   archetype: string;
   adventureTitle: string;
+  adventureId: string;
+  heroName: string;
   protagonistName: string | null;
   finalWords: string | null;
   lastLine: string | null;
@@ -69,18 +73,13 @@ function EndingCard({
   // Determine the hero quote - prioritize user's final words, then last line, then fallback
   const heroQuote = finalWords || lastLine || config.fallbackQuote;
 
+  // Scene image URL for the resolution scene
+  const sceneImageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scene-images/${adventureId}/resolution_${vibe}.png`;
+
   // Check if Web Share API is available
   useEffect(() => {
     setCanShare(typeof navigator !== "undefined" && !!navigator.share);
   }, []);
-
-  // Vibe-specific gradients for the card background (inline styles for image export)
-  const vibeGradients: Record<string, string> = {
-    dark: "linear-gradient(135deg, #1a1a2e 0%, #0f0f0f 50%, #16213e 100%)",
-    gold: "linear-gradient(135deg, #3d2914 0%, #0f0f0f 50%, #4a3728 100%)",
-    rose: "linear-gradient(135deg, #3d1a2e 0%, #0f0f0f 50%, #4a2840 100%)",
-    sage: "linear-gradient(135deg, #1a3d2e 0%, #0f0f0f 50%, #284a40 100%)",
-  };
 
   const vibeAccents: Record<string, string> = {
     dark: "#64748b",
@@ -168,7 +167,6 @@ function EndingCard({
       <div
         ref={cardRef}
         style={{
-          background: vibeGradients[vibe] || vibeGradients.dark,
           width: "100%",
           maxWidth: "400px",
           margin: "0 auto",
@@ -176,18 +174,32 @@ function EndingCard({
           borderRadius: "24px",
           position: "relative",
           overflow: "hidden",
+          backgroundColor: "#0f0f0f",
         }}
       >
-        {/* Decorative glow */}
+        {/* Scene image background */}
         <div
           style={{
             position: "absolute",
-            top: "-50%",
-            left: "-50%",
-            width: "200%",
-            height: "200%",
-            background: `radial-gradient(circle at 30% 30%, ${vibeAccents[vibe] || vibeAccents.dark}15 0%, transparent 50%)`,
-            pointerEvents: "none",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundImage: `url(${sceneImageUrl})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            opacity: 0.4,
+          }}
+        />
+        {/* Dark gradient overlay for readability */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "linear-gradient(180deg, rgba(15,15,15,0.7) 0%, rgba(15,15,15,0.85) 50%, rgba(15,15,15,0.95) 100%)",
           }}
         />
 
@@ -251,11 +263,12 @@ function EndingCard({
           {/* Hero quote - the star of the card */}
           <div
             style={{
-              background: "rgba(139, 34, 82, 0.15)",
+              background: "rgba(15, 15, 15, 0.6)",
               borderRadius: "16px",
               padding: "24px 20px",
               marginBottom: "32px",
               borderLeft: `3px solid ${vibeAccents[vibe] || vibeAccents.dark}`,
+              backdropFilter: "blur(4px)",
             }}
           >
             <p
@@ -269,6 +282,17 @@ function EndingCard({
               }}
             >
               &ldquo;{heroQuote}&rdquo;
+            </p>
+            <p
+              style={{
+                color: vibeAccents[vibe] || vibeAccents.dark,
+                fontSize: "14px",
+                fontFamily: "Georgia, serif",
+                marginTop: "12px",
+                textAlign: "right",
+              }}
+            >
+              — {heroName}
             </p>
           </div>
 
@@ -741,6 +765,8 @@ export default function ReaderPage() {
                   vibe={playthrough.vibe}
                   archetype={playthrough.archetype}
                   adventureTitle={playthrough.adventure_title}
+                  adventureId={playthrough.adventure_id}
+                  heroName={playthrough.adventure_id === "the-kitchen" ? "Julian" : "Him"}
                   protagonistName={playthrough.protagonist_name}
                   finalWords={playthrough.final_words}
                   lastLine={chapter?.prose ? chapter.prose.split("\n\n").pop() || null : null}
