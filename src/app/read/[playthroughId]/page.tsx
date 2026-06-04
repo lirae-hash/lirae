@@ -18,22 +18,37 @@ const ARCHETYPE_NAMES: Record<string, string> = {
   golden: "The Golden Boy",
 };
 
-// Ending configuration with fallback quotes
+// Ending configuration with colors and fallback quotes
 const ENDING_CONFIG = {
   hea: {
     title: "Happily Ever After",
     fallbackQuote: "I chose vulnerability. I chose him. And he chose me back.",
-    emoji: "\u2728",
+    // Warm golden glow
+    primaryColor: "#fbbf24",
+    secondaryColor: "#f59e0b",
+    gradientFrom: "rgba(251, 191, 36, 0.15)",
+    gradientTo: "rgba(245, 158, 11, 0.05)",
+    glowColor: "rgba(251, 191, 36, 0.3)",
   },
   hfn: {
     title: "Happy For Now",
     fallbackQuote: "The story isn't over. But right now, in this moment, we're together.",
-    emoji: "\u2764\uFE0F",
+    // Soft rose/pink warmth
+    primaryColor: "#f472b6",
+    secondaryColor: "#ec4899",
+    gradientFrom: "rgba(244, 114, 182, 0.12)",
+    gradientTo: "rgba(236, 72, 153, 0.04)",
+    glowColor: "rgba(244, 114, 182, 0.25)",
   },
   heartbreak: {
     title: "Heartbreak",
     fallbackQuote: "Some walls are built to protect. Some distances can't be closed.",
-    emoji: "\uD83D\uDDA4",
+    // Cold slate blue
+    primaryColor: "#94a3b8",
+    secondaryColor: "#64748b",
+    gradientFrom: "rgba(148, 163, 184, 0.1)",
+    gradientTo: "rgba(100, 116, 139, 0.03)",
+    glowColor: "rgba(148, 163, 184, 0.2)",
   },
 };
 
@@ -221,11 +236,13 @@ function EndingCard({
     setCanShare(typeof navigator !== "undefined" && !!navigator.share);
   }, []);
 
-  const vibeAccents: Record<string, string> = {
-    dark: "#64748b",
-    gold: "#d97706",
-    rose: "#e11d48",
-    sage: "#10b981",
+  // Use ending-specific colors (ignoring vibe for clearer emotional tone)
+  const endingColors = {
+    primary: config.primaryColor,
+    secondary: config.secondaryColor,
+    gradientFrom: config.gradientFrom,
+    gradientTo: config.gradientTo,
+    glow: config.glowColor,
   };
 
   async function handleDownload() {
@@ -236,7 +253,7 @@ function EndingCard({
       const dataUrl = await toPng(cardRef.current, {
         quality: 1,
         pixelRatio: 2,
-        backgroundColor: "#0f0f0f",
+        backgroundColor: "#0a0a0a",
       });
 
       const link = document.createElement("a");
@@ -258,7 +275,7 @@ function EndingCard({
       const dataUrl = await toPng(cardRef.current, {
         quality: 1,
         pixelRatio: 2,
-        backgroundColor: "#0f0f0f",
+        backgroundColor: "#0a0a0a",
       });
 
       const res = await fetch(dataUrl);
@@ -301,19 +318,23 @@ function EndingCard({
 
   return (
     <div className="mt-12 pt-8 border-t border-warm-gray">
+      {/* Card with 9:16 aspect ratio for Instagram Stories */}
       <div
         ref={cardRef}
         style={{
           width: "100%",
-          maxWidth: "400px",
+          maxWidth: "360px",
+          aspectRatio: "9 / 16",
           margin: "0 auto",
-          padding: "48px 32px",
           borderRadius: "24px",
           position: "relative",
           overflow: "hidden",
-          backgroundColor: "#0f0f0f",
+          backgroundColor: "#0a0a0a",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
+        {/* Scene image - brighter at 70% opacity */}
         {imageDataUrl && (
           <div
             style={{
@@ -324,11 +345,13 @@ function EndingCard({
               bottom: 0,
               backgroundImage: `url(${imageDataUrl})`,
               backgroundSize: "cover",
-              backgroundPosition: "center",
-              opacity: 0.35,
+              backgroundPosition: "center top",
+              opacity: 0.7,
             }}
           />
         )}
+
+        {/* Lighter gradient overlay with ending-specific color tint */}
         <div
           style={{
             position: "absolute",
@@ -336,79 +359,110 @@ function EndingCard({
             left: 0,
             right: 0,
             bottom: 0,
-            background: "linear-gradient(180deg, rgba(15,15,15,0.7) 0%, rgba(15,15,15,0.85) 50%, rgba(15,15,15,0.95) 100%)",
+            background: `linear-gradient(180deg,
+              ${endingColors.gradientFrom} 0%,
+              rgba(10, 10, 10, 0.4) 30%,
+              rgba(10, 10, 10, 0.7) 60%,
+              rgba(10, 10, 10, 0.95) 100%)`,
           }}
         />
 
-        <div style={{ position: "relative", zIndex: 1, textAlign: "center" }}>
+        {/* Subtle glow at top for ending color */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "200%",
+            height: "40%",
+            background: `radial-gradient(ellipse at center top, ${endingColors.glow} 0%, transparent 70%)`,
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* Content */}
+        <div style={{
+          position: "relative",
+          zIndex: 1,
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          padding: "40px 28px 32px",
+        }}>
+          {/* Top section - The End label */}
           <p
             style={{
-              color: vibeAccents[vibe] || vibeAccents.dark,
-              fontSize: "11px",
-              letterSpacing: "0.3em",
+              color: endingColors.secondary,
+              fontSize: "10px",
+              letterSpacing: "0.35em",
               textTransform: "uppercase",
-              marginBottom: "16px",
+              textAlign: "center",
+              marginBottom: "auto",
               fontFamily: "system-ui, sans-serif",
             }}
           >
             The End
           </p>
 
-          <h2
-            style={{
-              color: "#f5f5dc",
-              fontSize: "32px",
-              fontFamily: "Georgia, serif",
-              fontWeight: "normal",
-              marginBottom: "8px",
-              lineHeight: 1.2,
-            }}
-          >
-            {config.title}
-          </h2>
-
-          {protagonistName && (
-            <p
+          {/* Hero section - Ending title (BIG) */}
+          <div style={{ textAlign: "center", marginBottom: "24px" }}>
+            <h2
               style={{
-                color: "#a8a29e",
-                fontSize: "14px",
-                marginBottom: "8px",
-                fontFamily: "system-ui, sans-serif",
+                color: endingColors.primary,
+                fontSize: "42px",
+                fontFamily: "Georgia, serif",
+                fontWeight: "normal",
+                lineHeight: 1.1,
+                marginBottom: "12px",
+                textShadow: `0 0 40px ${endingColors.glow}`,
               }}
             >
-              {protagonistName}&apos;s story
-            </p>
-          )}
+              {config.title}
+            </h2>
 
-          <p
-            style={{
-              color: "#a8a29e",
-              fontSize: "14px",
-              marginBottom: "32px",
-              fontFamily: "system-ui, sans-serif",
-            }}
-          >
-            with{" "}
-            <span style={{ color: "#8b2252", fontWeight: 500 }}>{archetypeName}</span>
-          </p>
+            {protagonistName && (
+              <p
+                style={{
+                  color: "rgba(255, 255, 255, 0.6)",
+                  fontSize: "13px",
+                  fontFamily: "system-ui, sans-serif",
+                }}
+              >
+                {protagonistName}&apos;s story with{" "}
+                <span style={{ color: endingColors.primary }}>{archetypeName}</span>
+              </p>
+            )}
+            {!protagonistName && (
+              <p
+                style={{
+                  color: "rgba(255, 255, 255, 0.6)",
+                  fontSize: "13px",
+                  fontFamily: "system-ui, sans-serif",
+                }}
+              >
+                with <span style={{ color: endingColors.primary }}>{archetypeName}</span>
+              </p>
+            )}
+          </div>
 
+          {/* Quote section */}
           <div
             style={{
-              background: "rgba(15, 15, 15, 0.6)",
+              background: "rgba(0, 0, 0, 0.4)",
               borderRadius: "16px",
-              padding: "24px 20px",
-              marginBottom: "32px",
-              borderLeft: `3px solid ${vibeAccents[vibe] || vibeAccents.dark}`,
-              backdropFilter: "blur(4px)",
+              padding: "20px",
+              marginBottom: "24px",
+              borderLeft: `3px solid ${endingColors.primary}`,
             }}
           >
             <p
               style={{
-                color: "#f5f5dc",
-                fontSize: "18px",
+                color: "#f5f5f5",
+                fontSize: "16px",
                 fontFamily: "Georgia, serif",
                 fontStyle: "italic",
-                lineHeight: 1.6,
+                lineHeight: 1.7,
                 margin: 0,
               }}
             >
@@ -417,10 +471,10 @@ function EndingCard({
             {quoteAttribution && (
               <p
                 style={{
-                  color: vibeAccents[vibe] || vibeAccents.dark,
-                  fontSize: "14px",
+                  color: endingColors.primary,
+                  fontSize: "13px",
                   fontFamily: "Georgia, serif",
-                  marginTop: "12px",
+                  marginTop: "10px",
                   textAlign: "right",
                 }}
               >
@@ -429,36 +483,38 @@ function EndingCard({
             )}
           </div>
 
-          <p
-            style={{
-              color: "#78716c",
-              fontSize: "12px",
-              marginBottom: "24px",
-              fontFamily: "system-ui, sans-serif",
-            }}
-          >
-            {adventureTitle}
-          </p>
-
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-            <span
+          {/* Bottom branding */}
+          <div style={{ marginTop: "auto", textAlign: "center" }}>
+            <p
               style={{
-                color: "#8b2252",
-                fontSize: "20px",
-                fontFamily: "Georgia, serif",
-              }}
-            >
-              Lirae
-            </span>
-            <span
-              style={{
-                color: "#57534e",
+                color: "rgba(255, 255, 255, 0.4)",
                 fontSize: "11px",
+                marginBottom: "12px",
                 fontFamily: "system-ui, sans-serif",
               }}
             >
-              lirae.app
-            </span>
+              {adventureTitle}
+            </p>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+              <span
+                style={{
+                  color: endingColors.primary,
+                  fontSize: "18px",
+                  fontFamily: "Georgia, serif",
+                }}
+              >
+                Lirae
+              </span>
+              <span
+                style={{
+                  color: "rgba(255, 255, 255, 0.35)",
+                  fontSize: "10px",
+                  fontFamily: "system-ui, sans-serif",
+                }}
+              >
+                lirae.app
+              </span>
+            </div>
           </div>
         </div>
       </div>
