@@ -1,34 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { toPng } from "html-to-image";
 import { AgeGate } from "@/components/AgeGate";
 import { Paywall } from "@/components/Paywall";
-
-// Vibe palettes for shareable card styling
-const VIBE_STYLES = {
-  dark: {
-    border: "border-slate-700",
-    bg: "bg-gradient-to-br from-slate-900 via-near-black to-slate-800",
-    accent: "text-slate-400",
-  },
-  gold: {
-    border: "border-amber-700/60",
-    bg: "bg-gradient-to-br from-amber-950 via-near-black to-amber-900/30",
-    accent: "text-amber-500/80",
-  },
-  rose: {
-    border: "border-rose-800/60",
-    bg: "bg-gradient-to-br from-rose-950 via-near-black to-rose-900/30",
-    accent: "text-rose-400/80",
-  },
-  sage: {
-    border: "border-emerald-800/60",
-    bg: "bg-gradient-to-br from-emerald-950 via-near-black to-emerald-900/30",
-    accent: "text-emerald-500/80",
-  },
-};
 
 // Archetype display names
 const ARCHETYPE_NAMES: Record<string, string> = {
@@ -40,48 +17,130 @@ const ARCHETYPE_NAMES: Record<string, string> = {
   golden: "The Golden Boy",
 };
 
-// Ending configuration
+// Ending configuration with fallback quotes
 const ENDING_CONFIG = {
   hea: {
     title: "Happily Ever After",
-    quote: "I chose vulnerability. I got my Happily Ever After.",
-    shortQuote: "I chose him. He chose me back.",
-    gradient: "from-wine/30 to-rose-900/30",
+    fallbackQuote: "I chose vulnerability. I chose him. And he chose me back.",
+    emoji: "\u2728",
   },
   hfn: {
     title: "Happy For Now",
-    quote: "The story isn't over. But right now, we're together.",
-    shortQuote: "For now, this is enough.",
-    gradient: "from-amber-900/30 to-wine/30",
+    fallbackQuote: "The story isn't over. But right now, in this moment, we're together.",
+    emoji: "\u2764\uFE0F",
   },
   heartbreak: {
     title: "Heartbreak",
-    quote: "Some walls protect. Some distances can't be closed.",
-    shortQuote: "This is the ending I chose.",
-    gradient: "from-slate-800/50 to-near-black",
+    fallbackQuote: "Some walls are built to protect. Some distances can't be closed.",
+    emoji: "\uD83D\uDDA4",
   },
 };
 
-// Shareable ending card component
+// Premium shareable ending card
 function EndingCard({
   ending,
   vibe,
   archetype,
   adventureTitle,
+  protagonistName,
+  finalWords,
+  lastLine,
   playthroughId,
 }: {
   ending: string | null;
   vibe: string;
   archetype: string;
   adventureTitle: string;
+  protagonistName: string | null;
+  finalWords: string | null;
+  lastLine: string | null;
   playthroughId: string;
 }) {
   const router = useRouter();
+  const cardRef = useRef<HTMLDivElement>(null);
   const [isRewinding, setIsRewinding] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [canShare, setCanShare] = useState(false);
 
-  const vibeStyle = VIBE_STYLES[vibe as keyof typeof VIBE_STYLES] || VIBE_STYLES.dark;
   const config = ENDING_CONFIG[ending as keyof typeof ENDING_CONFIG] || ENDING_CONFIG.hfn;
   const archetypeName = ARCHETYPE_NAMES[archetype] || "The Love Interest";
+
+  // Determine the hero quote - prioritize user's final words, then last line, then fallback
+  const heroQuote = finalWords || lastLine || config.fallbackQuote;
+
+  // Check if Web Share API is available
+  useEffect(() => {
+    setCanShare(typeof navigator !== "undefined" && !!navigator.share);
+  }, []);
+
+  // Vibe-specific gradients for the card background (inline styles for image export)
+  const vibeGradients: Record<string, string> = {
+    dark: "linear-gradient(135deg, #1a1a2e 0%, #0f0f0f 50%, #16213e 100%)",
+    gold: "linear-gradient(135deg, #3d2914 0%, #0f0f0f 50%, #4a3728 100%)",
+    rose: "linear-gradient(135deg, #3d1a2e 0%, #0f0f0f 50%, #4a2840 100%)",
+    sage: "linear-gradient(135deg, #1a3d2e 0%, #0f0f0f 50%, #284a40 100%)",
+  };
+
+  const vibeAccents: Record<string, string> = {
+    dark: "#64748b",
+    gold: "#d97706",
+    rose: "#e11d48",
+    sage: "#10b981",
+  };
+
+  async function handleDownload() {
+    if (!cardRef.current) return;
+    setIsDownloading(true);
+
+    try {
+      const dataUrl = await toPng(cardRef.current, {
+        quality: 1,
+        pixelRatio: 2,
+        backgroundColor: "#0f0f0f",
+      });
+
+      const link = document.createElement("a");
+      link.download = `lirae-${ending || "ending"}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error("Failed to generate image:", err);
+    } finally {
+      setIsDownloading(false);
+    }
+  }
+
+  async function handleShare() {
+    if (!cardRef.current) return;
+    setIsSharing(true);
+
+    try {
+      const dataUrl = await toPng(cardRef.current, {
+        quality: 1,
+        pixelRatio: 2,
+        backgroundColor: "#0f0f0f",
+      });
+
+      // Convert data URL to blob
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `lirae-${ending || "ending"}.png`, { type: "image/png" });
+
+      await navigator.share({
+        title: `My ${config.title} ending`,
+        text: `I just finished "${adventureTitle}" on Lirae. ${heroQuote.slice(0, 100)}...`,
+        files: [file],
+      });
+    } catch (err) {
+      // User cancelled or share failed - not an error
+      if ((err as Error).name !== "AbortError") {
+        console.error("Share failed:", err);
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  }
 
   async function handleRewind() {
     setIsRewinding(true);
@@ -105,47 +164,206 @@ function EndingCard({
 
   return (
     <div className="mt-12 pt-8 border-t border-warm-gray">
-      {/* Shareable Card - designed for screenshots */}
+      {/* ===== SHAREABLE CARD (exported as image) ===== */}
       <div
-        className={`${vibeStyle.bg} ${vibeStyle.border} border-2 rounded-xl p-8 text-center relative overflow-hidden`}
+        ref={cardRef}
+        style={{
+          background: vibeGradients[vibe] || vibeGradients.dark,
+          width: "100%",
+          maxWidth: "400px",
+          margin: "0 auto",
+          padding: "48px 32px",
+          borderRadius: "24px",
+          position: "relative",
+          overflow: "hidden",
+        }}
       >
-        {/* Decorative corner elements */}
-        <div className="absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 border-wine/30 rounded-tl-xl" />
-        <div className="absolute top-0 right-0 w-16 h-16 border-t-2 border-r-2 border-wine/30 rounded-tr-xl" />
-        <div className="absolute bottom-0 left-0 w-16 h-16 border-b-2 border-l-2 border-wine/30 rounded-bl-xl" />
-        <div className="absolute bottom-0 right-0 w-16 h-16 border-b-2 border-r-2 border-wine/30 rounded-br-xl" />
+        {/* Decorative glow */}
+        <div
+          style={{
+            position: "absolute",
+            top: "-50%",
+            left: "-50%",
+            width: "200%",
+            height: "200%",
+            background: `radial-gradient(circle at 30% 30%, ${vibeAccents[vibe] || vibeAccents.dark}15 0%, transparent 50%)`,
+            pointerEvents: "none",
+          }}
+        />
 
-        {/* The End label */}
-        <p className={`${vibeStyle.accent} uppercase tracking-[0.3em] text-xs mb-4`}>
-          The End
-        </p>
-
-        {/* Ending type */}
-        <h2 className="font-serif text-4xl text-cream mb-2">{config.title}</h2>
-
-        {/* Archetype badge */}
-        <p className="text-cream-muted text-sm mb-6">
-          with <span className="text-wine font-medium">{archetypeName}</span>
-        </p>
-
-        {/* Pull quote */}
-        <div className={`bg-gradient-to-b ${config.gradient} rounded-lg p-6 mb-6`}>
-          <p className="font-serif text-xl text-cream italic leading-relaxed">
-            &ldquo;{config.quote}&rdquo;
+        {/* Content */}
+        <div style={{ position: "relative", zIndex: 1, textAlign: "center" }}>
+          {/* The End label */}
+          <p
+            style={{
+              color: vibeAccents[vibe] || vibeAccents.dark,
+              fontSize: "11px",
+              letterSpacing: "0.3em",
+              textTransform: "uppercase",
+              marginBottom: "16px",
+              fontFamily: "system-ui, sans-serif",
+            }}
+          >
+            The End
           </p>
-        </div>
 
-        {/* Adventure title */}
-        <p className="text-cream-muted text-sm mb-4">{adventureTitle}</p>
+          {/* Ending title */}
+          <h2
+            style={{
+              color: "#f5f5dc",
+              fontSize: "32px",
+              fontFamily: "Georgia, serif",
+              fontWeight: "normal",
+              marginBottom: "8px",
+              lineHeight: 1.2,
+            }}
+          >
+            {config.title}
+          </h2>
 
-        {/* Lirae branding */}
-        <div className="flex items-center justify-center gap-2">
-          <span className="font-serif text-wine text-lg">Lirae</span>
-          <span className="text-warm-gray text-xs">lirae.app</span>
+          {/* Protagonist name if provided */}
+          {protagonistName && (
+            <p
+              style={{
+                color: "#a8a29e",
+                fontSize: "14px",
+                marginBottom: "8px",
+                fontFamily: "system-ui, sans-serif",
+              }}
+            >
+              {protagonistName}&apos;s story
+            </p>
+          )}
+
+          {/* Archetype */}
+          <p
+            style={{
+              color: "#a8a29e",
+              fontSize: "14px",
+              marginBottom: "32px",
+              fontFamily: "system-ui, sans-serif",
+            }}
+          >
+            with{" "}
+            <span style={{ color: "#8b2252", fontWeight: 500 }}>{archetypeName}</span>
+          </p>
+
+          {/* Hero quote - the star of the card */}
+          <div
+            style={{
+              background: "rgba(139, 34, 82, 0.15)",
+              borderRadius: "16px",
+              padding: "24px 20px",
+              marginBottom: "32px",
+              borderLeft: `3px solid ${vibeAccents[vibe] || vibeAccents.dark}`,
+            }}
+          >
+            <p
+              style={{
+                color: "#f5f5dc",
+                fontSize: "18px",
+                fontFamily: "Georgia, serif",
+                fontStyle: "italic",
+                lineHeight: 1.6,
+                margin: 0,
+              }}
+            >
+              &ldquo;{heroQuote}&rdquo;
+            </p>
+          </div>
+
+          {/* Adventure title */}
+          <p
+            style={{
+              color: "#78716c",
+              fontSize: "12px",
+              marginBottom: "24px",
+              fontFamily: "system-ui, sans-serif",
+            }}
+          >
+            {adventureTitle}
+          </p>
+
+          {/* Lirae branding */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+            <span
+              style={{
+                color: "#8b2252",
+                fontSize: "20px",
+                fontFamily: "Georgia, serif",
+              }}
+            >
+              Lirae
+            </span>
+            <span
+              style={{
+                color: "#57534e",
+                fontSize: "11px",
+                fontFamily: "system-ui, sans-serif",
+              }}
+            >
+              lirae.app
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Rewind option for heartbreak */}
+      {/* ===== SHARE ACTIONS ===== */}
+      <div className="mt-8 text-center">
+        <div className="flex flex-col sm:flex-row gap-3 justify-center mb-6">
+          <button
+            onClick={handleDownload}
+            disabled={isDownloading}
+            className="px-6 py-3 bg-wine hover:bg-wine-light disabled:bg-warm-gray text-cream font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+          >
+            {isDownloading ? (
+              "Saving..."
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Save Image
+              </>
+            )}
+          </button>
+
+          {canShare && (
+            <button
+              onClick={handleShare}
+              disabled={isSharing}
+              className="px-6 py-3 border border-wine text-wine hover:bg-wine hover:text-cream disabled:opacity-50 font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              {isSharing ? (
+                "Sharing..."
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                  </svg>
+                  Share
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ===== INVITE A FRIEND ===== */}
+      <div className="mt-8 p-6 border border-warm-gray rounded-xl bg-charcoal/30 text-center">
+        <p className="text-cream font-serif text-lg mb-2">Give a friend their own adventure</p>
+        <p className="text-cream-muted text-sm mb-4">
+          Every reader gets a different story. Send them to find theirs.
+        </p>
+        <Link
+          href={`/adventure/${adventureTitle === "The Kitchen" ? "the-kitchen" : "the-kitchen"}`}
+          className="inline-block px-6 py-2 bg-transparent border border-cream-muted text-cream-muted hover:border-cream hover:text-cream rounded-lg transition-colors text-sm"
+        >
+          Send the link: lirae.app
+        </Link>
+      </div>
+
+      {/* ===== REWIND (heartbreak only) ===== */}
       {ending === "heartbreak" && (
         <div className="mt-6 p-4 border border-warm-gray rounded-lg bg-near-black/50 text-center">
           <p className="text-cream-muted text-sm mb-3">
@@ -161,13 +379,13 @@ function EndingCard({
         </div>
       )}
 
-      {/* Actions */}
-      <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+      {/* ===== BACK TO LIBRARY ===== */}
+      <div className="mt-6 text-center">
         <Link
           href="/library"
-          className="px-8 py-3 bg-wine hover:bg-wine-light text-cream font-medium rounded-lg transition-colors text-center"
+          className="text-cream-muted hover:text-wine transition-colors text-sm"
         >
-          Choose another adventure
+          &larr; Back to library
         </Link>
       </div>
     </div>
@@ -198,6 +416,7 @@ interface Playthrough {
   current_chapter: number;
   choice_log: { id: string; text: string; tag: string }[];
   ending: string | null;
+  final_words: string | null;
 }
 
 export default function ReaderPage() {
@@ -522,6 +741,9 @@ export default function ReaderPage() {
                   vibe={playthrough.vibe}
                   archetype={playthrough.archetype}
                   adventureTitle={playthrough.adventure_title}
+                  protagonistName={playthrough.protagonist_name}
+                  finalWords={playthrough.final_words}
+                  lastLine={chapter?.prose ? chapter.prose.split("\n\n").pop() || null : null}
                   playthroughId={playthroughId}
                 />
               )}
