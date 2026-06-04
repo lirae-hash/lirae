@@ -76,3 +76,19 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--wine);
 }
+
+/* Elegant sentence fade-in animation for streaming */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 300ms ease-out;
+}

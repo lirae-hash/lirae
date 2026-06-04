@@ -9,6 +9,11 @@ const ADVENTURES: Record<string, typeof THE_KITCHEN> = {
   "the-kitchen": THE_KITCHEN,
 };
 
+// Emails with full access (bypass paywall)
+const FULL_ACCESS_EMAILS = [
+  "maknight142@gmail.com",
+];
+
 const CHAPTER_ARCHETYPES: Record<number, string> = {
   1: "arrival",
   2: "proximity",
@@ -107,8 +112,9 @@ export async function POST(request: Request) {
 
     const sceneImageUrl = getSceneImageUrl(playthrough.adventure_id, chapterNo, playthrough.vibe);
 
-    // PAYWALL check
-    if (chapterNo >= 4 && user) {
+    // PAYWALL check - skip for full access emails
+    const hasFullAccess = user?.email && FULL_ACCESS_EMAILS.includes(user.email.toLowerCase());
+    if (chapterNo >= 4 && user && !hasFullAccess) {
       const { data: purchase } = await supabase
         .from("purchases")
         .select("status")

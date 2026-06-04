@@ -8,6 +8,43 @@ import { AgeGate } from "@/components/AgeGate";
 import { Paywall } from "@/components/Paywall";
 import { createClient } from "@/lib/supabase/client";
 
+// Strip choice and card quote markers from streamed prose
+function cleanStreamedProse(text: string): string {
+  return text
+    // Remove CHOICE lines (CHOICE_1:, CHOICE_2:, CHOICE_3:, CHOICE_A:, etc.)
+    .replace(/^CHOICE_[123ABC]:\s*.*/gim, "")
+    // Remove CARD_QUOTE lines
+    .replace(/^CARD_QUOTE:\s*.*/gim, "")
+    .replace(/^CARD_QUOTE_SPEAKER:\s*.*/gim, "")
+    // Clean up extra whitespace
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+// Split text into sentences for animated reveal
+function splitIntoSentences(text: string): string[] {
+  // Split on sentence endings, keeping the punctuation
+  const sentences: string[] = [];
+  const regex = /[^.!?]*[.!?]+["']?\s*/g;
+  let match;
+  let lastIndex = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    sentences.push(match[0]);
+    lastIndex = regex.lastIndex;
+  }
+
+  // Add any remaining text (incomplete sentence during streaming)
+  if (lastIndex < text.length) {
+    const remaining = text.slice(lastIndex).trim();
+    if (remaining) {
+      sentences.push(remaining);
+    }
+  }
+
+  return sentences;
+}
+
 // Archetype display names
 const ARCHETYPE_NAMES: Record<string, string> = {
   brooding: "The Brooding Rival",
@@ -1046,13 +1083,38 @@ export default function ReaderPage() {
             </div>
           ) : chapter ? (
             <>
-              {/* Prose - use streamedProse during streaming, chapter.prose after */}
+              {/* Prose - use cleaned streamedProse during streaming, chapter.prose after */}
               <div className="prose-lirae">
-                {(isStreaming ? streamedProse : chapter.prose).split("\n\n").filter(p => p.trim()).map((paragraph, i) => (
-                  <p key={i}>{paragraph}</p>
-                ))}
-                {isStreaming && (
-                  <span className="inline-block w-2 h-5 bg-wine animate-pulse ml-1" />
+                {isStreaming ? (
+                  // Streaming mode: fade in sentences elegantly
+                  <>
+                    {cleanStreamedProse(streamedProse).split("\n\n").filter(p => p.trim()).map((paragraph, pIndex) => {
+                      const sentences = splitIntoSentences(paragraph);
+                      return (
+                        <p key={pIndex} className="mb-4">
+                          {sentences.map((sentence, sIndex) => (
+                            <span
+                              key={`${pIndex}-${sIndex}`}
+                              className="animate-fadeIn"
+                              style={{
+                                animationDelay: `${(pIndex * 3 + sIndex) * 80}ms`,
+                                animationDuration: "300ms",
+                                animationFillMode: "both",
+                              }}
+                            >
+                              {sentence}
+                            </span>
+                          ))}
+                        </p>
+                      );
+                    })}
+                    <span className="inline-block w-1.5 h-4 bg-wine/60 animate-pulse ml-0.5 rounded-sm" />
+                  </>
+                ) : (
+                  // Static mode: render normally
+                  chapter.prose.split("\n\n").filter(p => p.trim()).map((paragraph, i) => (
+                    <p key={i}>{paragraph}</p>
+                  ))
                 )}
               </div>
 

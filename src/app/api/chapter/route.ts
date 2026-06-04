@@ -11,6 +11,11 @@ const ADVENTURES: Record<string, typeof THE_KITCHEN> = {
   "the-kitchen": THE_KITCHEN,
 };
 
+// Emails with full access (bypass paywall)
+const FULL_ACCESS_EMAILS = [
+  "maknight142@gmail.com",
+];
+
 // Map chapter numbers to scene archetypes for image lookup
 const CHAPTER_ARCHETYPES: Record<number, string> = {
   1: "arrival",
@@ -103,7 +108,9 @@ export async function POST(request: Request) {
     const sceneImageUrl = getSceneImageUrl(playthrough.adventure_id, chapterNo, playthrough.vibe);
 
     // PAYWALL: Chapters 4+ require purchase (after auth check)
-    if (chapterNo >= 4 && user) {
+    // Skip for full access emails
+    const hasFullAccess = user?.email && FULL_ACCESS_EMAILS.includes(user.email.toLowerCase());
+    if (chapterNo >= 4 && user && !hasFullAccess) {
       const { data: purchase } = await supabase
         .from("purchases")
         .select("status")
