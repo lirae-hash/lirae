@@ -8,52 +8,6 @@ import { AgeGate } from "@/components/AgeGate";
 import { Paywall } from "@/components/Paywall";
 import { createClient } from "@/lib/supabase/client";
 
-// Strip choice and card quote markers from streamed prose
-// Must handle mid-stream text where CHOICE_ might not be at line start
-function cleanStreamedProse(text: string): string {
-  // Find where CHOICE_ content starts and cut everything from there
-  // This handles streaming where choices run together without newlines
-  const choiceStart = text.search(/CHOICE_[123ABC]:/i);
-  if (choiceStart > 0) {
-    text = text.slice(0, choiceStart);
-  }
-
-  // Also handle CARD_QUOTE if it appears
-  const cardQuoteStart = text.search(/CARD_QUOTE:/i);
-  if (cardQuoteStart > 0) {
-    text = text.slice(0, cardQuoteStart);
-  }
-
-  // Clean up extra whitespace
-  return text
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-// Split text into sentences for animated reveal
-function splitIntoSentences(text: string): string[] {
-  // Split on sentence endings, keeping the punctuation
-  const sentences: string[] = [];
-  const regex = /[^.!?]*[.!?]+["']?\s*/g;
-  let match;
-  let lastIndex = 0;
-
-  while ((match = regex.exec(text)) !== null) {
-    sentences.push(match[0]);
-    lastIndex = regex.lastIndex;
-  }
-
-  // Add any remaining text (incomplete sentence during streaming)
-  if (lastIndex < text.length) {
-    const remaining = text.slice(lastIndex).trim();
-    if (remaining) {
-      sentences.push(remaining);
-    }
-  }
-
-  return sentences;
-}
-
 // Archetype display names
 const ARCHETYPE_NAMES: Record<string, string> = {
   brooding: "The Brooding Rival",
@@ -683,8 +637,6 @@ export default function ReaderPage() {
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingChapter, setIsLoadingChapter] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [streamedProse, setStreamedProse] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [selectedChoice, setSelectedChoice] = useState<Choice | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -786,15 +738,11 @@ export default function ReaderPage() {
 
   const fetchChapter = useCallback(async (pt: Playthrough) => {
     setIsLoadingChapter(true);
-    setIsStreaming(false);
-    setStreamedProse("");
     setError(null);
-    setChapter(null);
-
-    const token = localStorage.getItem(`lirae_anon_${playthroughId}`);
 
     try {
-      const res = await fetch("/api/chapter/stream", {
+      const token = localStorage.getItem(`lirae_anon_${playthroughId}`);
+      const res = await fetch("/api/chapter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -804,102 +752,30 @@ export default function ReaderPage() {
         }),
       });
 
-      // Check for JSON error responses (non-streaming)
-      const contentType = res.headers.get("content-type");
-      if (contentType?.includes("application/json")) {
-        const data = await res.json();
+      const data = await res.json();
+
+      if (!res.ok) {
         if (data.code === "AUTH_REQUIRED") {
           setShowSignIn(true);
-          setIsLoadingChapter(false);
           return;
         }
         if (data.code === "PAYWALL") {
           setShowPaywall(true);
-          setIsLoadingChapter(false);
           return;
         }
         throw new Error(data.error || "Failed to load chapter");
       }
 
-      if (!res.ok) {
-        throw new Error("Failed to load chapter");
-      }
-
       setShowPaywall(false);
       setShowSignIn(false);
+      setChapter(data.chapter);
 
-      // Process the stream
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("No response body");
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let accumulatedProse = "";
-      let sceneImageUrl = "";
-      let fromCache = false;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-
-              if (data.type === "meta") {
-                sceneImageUrl = data.sceneImageUrl;
-                fromCache = data.fromCache;
-                setIsLoadingChapter(false);
-                setIsStreaming(!fromCache);
-                // Set initial chapter with scene image
-                setChapter({
-                  number: pt.current_chapter,
-                  prose: "",
-                  choices: null,
-                  sceneImageUrl,
-                  cardQuote: null,
-                  cardQuoteSpeaker: null,
-                });
-              } else if (data.type === "prose") {
-                // Cached content - full prose at once
-                accumulatedProse = data.text;
-                setStreamedProse(data.text);
-              } else if (data.type === "chunk") {
-                // Streaming content - append chunk
-                accumulatedProse += data.text;
-                setStreamedProse(accumulatedProse);
-              } else if (data.type === "choices") {
-                // Generation complete
-                setIsStreaming(false);
-                setChapter({
-                  number: pt.current_chapter,
-                  prose: accumulatedProse,
-                  choices: data.choices,
-                  sceneImageUrl,
-                  cardQuote: data.cardQuote || null,
-                  cardQuoteSpeaker: data.cardQuoteSpeaker || null,
-                });
-                // Start prefetching next chapter
-                prefetchNextChapter(pt, pt.current_chapter + 1);
-              } else if (data.type === "error") {
-                throw new Error(data.error);
-              }
-            } catch (e) {
-              if (e instanceof SyntaxError) continue; // Skip malformed JSON
-              throw e;
-            }
-          }
-        }
-      }
+      // Prefetch next chapter in background
+      prefetchNextChapter(pt, pt.current_chapter + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
       setIsLoadingChapter(false);
-      setIsStreaming(false);
     }
   }, [playthroughId, prefetchNextChapter]);
 
@@ -1092,43 +968,15 @@ export default function ReaderPage() {
             </div>
           ) : chapter ? (
             <>
-              {/* Prose - use cleaned streamedProse during streaming, chapter.prose after */}
+              {/* Prose */}
               <div className="prose-lirae">
-                {isStreaming ? (
-                  // Streaming mode: fade in sentences elegantly
-                  <>
-                    {cleanStreamedProse(streamedProse).split("\n\n").filter(p => p.trim()).map((paragraph, pIndex) => {
-                      const sentences = splitIntoSentences(paragraph);
-                      return (
-                        <p key={pIndex} className="mb-4">
-                          {sentences.map((sentence, sIndex) => (
-                            <span
-                              key={`${pIndex}-${sIndex}`}
-                              className="animate-fadeIn"
-                              style={{
-                                animationDelay: `${(pIndex * 3 + sIndex) * 80}ms`,
-                                animationDuration: "300ms",
-                                animationFillMode: "both",
-                              }}
-                            >
-                              {sentence}
-                            </span>
-                          ))}
-                        </p>
-                      );
-                    })}
-                    <span className="inline-block w-1.5 h-4 bg-wine/60 animate-pulse ml-0.5 rounded-sm" />
-                  </>
-                ) : (
-                  // Static mode: render normally
-                  chapter.prose.split("\n\n").filter(p => p.trim()).map((paragraph, i) => (
-                    <p key={i}>{paragraph}</p>
-                  ))
-                )}
+                {chapter.prose.split("\n\n").filter(p => p.trim()).map((paragraph, i) => (
+                  <p key={i}>{paragraph}</p>
+                ))}
               </div>
 
-              {/* Choices - only show when not streaming */}
-              {!isStreaming && chapter.choices && chapter.choices.length > 0 && (
+              {/* Choices */}
+              {chapter.choices && chapter.choices.length > 0 && (
                 <div className="mt-12 pt-8 border-t border-warm-gray">
                   <p className="text-cream-muted text-center mb-6 font-serif italic">
                     What do you do?
@@ -1153,7 +1001,7 @@ export default function ReaderPage() {
               )}
 
               {/* No choices - Chapter 5 just continues */}
-              {!isStreaming && (!chapter.choices || chapter.choices.length === 0) && playthrough && playthrough.current_chapter === 5 && (
+              {(!chapter.choices || chapter.choices.length === 0) && playthrough && playthrough.current_chapter === 5 && (
                 <div className="mt-12 pt-8 border-t border-warm-gray text-center">
                   <button
                     onClick={() => {
@@ -1172,7 +1020,7 @@ export default function ReaderPage() {
               )}
 
               {/* Chapter 9 - Free text input */}
-              {!isStreaming && (!chapter.choices || chapter.choices.length === 0) && playthrough && playthrough.current_chapter === 9 && (
+              {(!chapter.choices || chapter.choices.length === 0) && playthrough && playthrough.current_chapter === 9 && (
                 <div className="mt-12 pt-8 border-t border-warm-gray">
                   <p className="text-cream text-center mb-4 font-serif italic text-lg">
                     Before everything changes — what do you say to him?
@@ -1220,7 +1068,7 @@ export default function ReaderPage() {
               )}
 
               {/* End of story */}
-              {!isStreaming && playthrough && playthrough.current_chapter === 10 && (!chapter?.choices || chapter.choices.length === 0) && (
+              {playthrough && playthrough.current_chapter === 10 && (!chapter?.choices || chapter.choices.length === 0) && (
                 <EndingCard
                   ending={playthrough.ending}
                   vibe={playthrough.vibe}
