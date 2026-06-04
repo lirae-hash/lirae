@@ -43,49 +43,50 @@ export default function LibraryPage() {
 
             {/* Adventures Grid */}
             <div className="grid md:grid-cols-2 gap-6">
-              {ADVENTURES.map((adventure) => (
-                <Link
-                  key={adventure.id}
-                  href={`/adventure/${adventure.id}`}
-                  className="group bg-charcoal rounded-lg border border-warm-gray hover:border-wine/50 transition-all overflow-hidden"
-                >
-                  {/* Cover Image Placeholder */}
-                  <div className="aspect-[3/2] bg-near-black relative">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <svg
-                        className="w-12 h-12 text-warm-gray"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                        />
-                      </svg>
-                    </div>
-                    {/* Trope Tag */}
-                    <div className="absolute top-3 left-3">
-                      <span className="px-2 py-1 bg-wine/90 text-cream text-xs rounded">
-                        {adventure.trope}
-                      </span>
-                    </div>
-                  </div>
+              {ADVENTURES.map((adventure) => {
+                // Use scene image as cover - arrival_dark is a good default
+                const coverUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scene-images/${adventure.id}/arrival_dark.png`;
 
-                  {/* Content */}
-                  <div className="p-5">
-                    <h2 className="font-serif text-xl text-cream group-hover:text-wine transition-colors mb-2">
-                      {adventure.title}
-                    </h2>
-                    <p className="text-cream-muted text-sm line-clamp-2">
-                      {adventure.blurb}
-                    </p>
-                    <div className="mt-4 flex items-center text-wine text-sm font-medium">
-                      <span>Start reading</span>
+                return (
+                  <Link
+                    key={adventure.id}
+                    href={`/adventure/${adventure.id}`}
+                    className="group bg-charcoal rounded-lg border border-warm-gray hover:border-wine/50 transition-all overflow-hidden"
+                  >
+                    {/* Cover Image from Scene Images */}
+                    <div className="aspect-[3/2] bg-near-black relative overflow-hidden">
+                      {/* Scene image background */}
+                      <img
+                        src={coverUrl}
+                        alt={adventure.title}
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      {/* Dark gradient overlay for text readability */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-near-black via-near-black/40 to-transparent" />
+
+                      {/* Trope Tag */}
+                      <div className="absolute top-3 left-3">
+                        <span className="px-2 py-1 bg-wine/90 text-cream text-xs rounded">
+                          {adventure.trope}
+                        </span>
+                      </div>
+
+                      {/* Title overlay at bottom */}
+                      <div className="absolute bottom-0 left-0 right-0 p-5">
+                        <h2 className="font-serif text-2xl text-cream group-hover:text-wine transition-colors mb-1">
+                          {adventure.title}
+                        </h2>
+                        <p className="text-cream-muted text-sm line-clamp-2">
+                          {adventure.blurb}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* CTA */}
+                    <div className="p-4 flex items-center justify-between">
+                      <span className="text-wine text-sm font-medium">Start reading</span>
                       <svg
-                        className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform"
+                        className="w-4 h-4 text-wine group-hover:translate-x-1 transition-transform"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -98,9 +99,9 @@ export default function LibraryPage() {
                         />
                       </svg>
                     </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
 
             {/* More Coming Soon */}
