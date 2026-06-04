@@ -1,7 +1,22 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { AgeGate } from "@/components/AgeGate";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 
 export default function Home() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    async function checkAuth() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsLoggedIn(!!user);
+    }
+    checkAuth();
+  }, []);
+
   return (
     <AgeGate>
       <main className="min-h-screen">
@@ -23,14 +38,16 @@ export default function Home() {
                 href="/library"
                 className="px-8 py-4 bg-wine hover:bg-wine-light text-cream font-medium rounded-lg transition-colors text-lg"
               >
-                Start Reading
+                {isLoggedIn ? "My Library" : "Start Reading"}
               </Link>
-              <Link
-                href="/auth/sign-in"
-                className="px-8 py-4 bg-transparent border border-wine hover:bg-wine/10 text-wine font-medium rounded-lg transition-colors text-lg"
-              >
-                Sign In
-              </Link>
+              {!isLoggedIn && (
+                <Link
+                  href="/auth/sign-in"
+                  className="px-8 py-4 bg-transparent border border-wine hover:bg-wine/10 text-wine font-medium rounded-lg transition-colors text-lg"
+                >
+                  Sign In
+                </Link>
+              )}
             </div>
           </div>
 
@@ -211,9 +228,11 @@ export default function Home() {
               <Link href="/privacy" className="hover:text-wine transition-colors">
                 Privacy Policy
               </Link>
-              <Link href="/auth/sign-in" className="hover:text-wine transition-colors">
-                Sign In
-              </Link>
+              {!isLoggedIn && (
+                <Link href="/auth/sign-in" className="hover:text-wine transition-colors">
+                  Sign In
+                </Link>
+              )}
             </div>
             <p className="text-cream-muted/50 text-xs mt-8">
               Adults only (18+). Content is mature but not explicit.

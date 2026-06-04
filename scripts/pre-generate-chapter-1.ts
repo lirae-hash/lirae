@@ -11,8 +11,15 @@
  * Run with: npx tsx scripts/pre-generate-chapter-1.ts
  */
 
+import dotenv from "dotenv";
+import path from "path";
+
+// Load environment variables from .env.local
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
+
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
+import WebSocket from "ws";
 
 // Inline the Gemini client to avoid import issues
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -91,7 +98,12 @@ import type { Vibe, SpiceLevel, HeroArchetype } from "../src/types/database";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    realtime: {
+      transport: WebSocket,
+    },
+  }
 );
 
 const VIBES: Vibe[] = ["dark", "gold", "rose", "sage"];

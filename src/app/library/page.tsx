@@ -1,4 +1,5 @@
 import { AgeGate } from "@/components/AgeGate";
+import { Header } from "@/components/Header";
 import Link from "next/link";
 
 // In production, this would come from the database
@@ -16,20 +17,7 @@ export default function LibraryPage() {
   return (
     <AgeGate>
       <main className="min-h-screen">
-        {/* Header */}
-        <header className="py-6 px-4 border-b border-warm-gray">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <Link href="/" className="font-serif text-2xl text-wine">
-              Lirae
-            </Link>
-            <Link
-              href="/auth/sign-in"
-              className="text-cream-muted hover:text-wine transition-colors"
-            >
-              Sign In
-            </Link>
-          </div>
-        </header>
+        <Header />
 
         {/* Library Content */}
         <section className="py-12 px-4">

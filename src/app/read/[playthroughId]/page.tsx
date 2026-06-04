@@ -112,10 +112,11 @@ function SignInModal({
         </button>
 
         <h2 className="font-serif text-2xl text-cream mb-2 text-center">
-          The story deepens...
+          Chapter 4 awaits...
         </h2>
         <p className="text-cream-muted text-center mb-6">
-          Sign in to continue reading and save your progress.
+          Enter your email and we&apos;ll send you a magic link to keep reading.
+          Your progress is saved — you&apos;ll pick up right where you left off.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -124,7 +125,7 @@ function SignInModal({
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
+              placeholder="your@email.com"
               className="w-full px-4 py-3 bg-near-black border border-warm-gray rounded-lg text-cream placeholder:text-warm-gray focus:border-wine focus:outline-none transition-colors"
               required
             />
@@ -139,12 +140,12 @@ function SignInModal({
             disabled={isLoading || !email.trim()}
             className="w-full py-3 bg-wine hover:bg-wine-light disabled:bg-warm-gray text-cream font-medium rounded-lg transition-colors"
           >
-            {isLoading ? "Sending..." : "Continue with magic link"}
+            {isLoading ? "Sending..." : "Send me a link"}
           </button>
         </form>
 
         <p className="text-cream-muted text-xs text-center mt-4">
-          No password needed. We&apos;ll email you a link.
+          No password needed — just click the link in your email.
         </p>
       </div>
     </div>
@@ -589,9 +590,36 @@ export default function ReaderPage() {
   const [anonymousToken, setAnonymousToken] = useState<string | null>(null);
 
   // Get anonymous token from localStorage on mount
+  // And auto-claim if user is authenticated
   useEffect(() => {
     const token = localStorage.getItem(`lirae_anon_${playthroughId}`);
     setAnonymousToken(token);
+
+    // Auto-claim playthrough if user came back from magic link
+    async function autoClaimIfNeeded() {
+      if (!token) return;
+
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        // User is authenticated and there's an anonymous token - claim it
+        try {
+          await fetch("/api/claim-playthrough", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ playthroughId, anonymousToken: token }),
+          });
+          // Clear the anonymous token after claiming
+          localStorage.removeItem(`lirae_anon_${playthroughId}`);
+          setAnonymousToken(null);
+        } catch (err) {
+          console.error("Failed to auto-claim playthrough:", err);
+        }
+      }
+    }
+
+    autoClaimIfNeeded();
   }, [playthroughId]);
 
   const fetchPlaythrough = useCallback(async () => {
