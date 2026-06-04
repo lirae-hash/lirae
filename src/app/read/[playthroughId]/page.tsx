@@ -581,6 +581,8 @@ export default function ReaderPage() {
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingChapter, setIsLoadingChapter] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamedProse, setStreamedProse] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [selectedChoice, setSelectedChoice] = useState<Choice | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -588,6 +590,7 @@ export default function ReaderPage() {
   const [showSignIn, setShowSignIn] = useState(false);
   const [finalWords, setFinalWords] = useState("");
   const [anonymousToken, setAnonymousToken] = useState<string | null>(null);
+  const prefetchedRef = useRef<Map<number, boolean>>(new Map());
 
   // Get anonymous token from localStorage on mount
   // And auto-claim if user is authenticated
@@ -655,13 +658,41 @@ export default function ReaderPage() {
     }
   }, [playthroughId, router]);
 
+  // Prefetch next chapter in background
+  const prefetchNextChapter = useCallback(async (pt: Playthrough, nextChapterNo: number) => {
+    if (prefetchedRef.current.has(nextChapterNo)) return;
+    if (nextChapterNo > 10) return;
+
+    prefetchedRef.current.set(nextChapterNo, true);
+
+    const token = localStorage.getItem(`lirae_anon_${playthroughId}`);
+    try {
+      // Use non-streaming endpoint for prefetch (just to warm the cache)
+      await fetch("/api/chapter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          playthroughId: pt.id,
+          chapterNo: nextChapterNo,
+          anonymousToken: token,
+        }),
+      });
+    } catch {
+      // Silently fail prefetch
+    }
+  }, [playthroughId]);
+
   const fetchChapter = useCallback(async (pt: Playthrough) => {
     setIsLoadingChapter(true);
+    setIsStreaming(false);
+    setStreamedProse("");
     setError(null);
+    setChapter(null);
+
+    const token = localStorage.getItem(`lirae_anon_${playthroughId}`);
 
     try {
-      const token = localStorage.getItem(`lirae_anon_${playthroughId}`);
-      const res = await fetch("/api/chapter", {
+      const res = await fetch("/api/chapter/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -671,29 +702,104 @@ export default function ReaderPage() {
         }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
+      // Check for JSON error responses (non-streaming)
+      const contentType = res.headers.get("content-type");
+      if (contentType?.includes("application/json")) {
+        const data = await res.json();
         if (data.code === "AUTH_REQUIRED") {
           setShowSignIn(true);
+          setIsLoadingChapter(false);
           return;
         }
         if (data.code === "PAYWALL") {
           setShowPaywall(true);
+          setIsLoadingChapter(false);
           return;
         }
         throw new Error(data.error || "Failed to load chapter");
       }
 
+      if (!res.ok) {
+        throw new Error("Failed to load chapter");
+      }
+
       setShowPaywall(false);
       setShowSignIn(false);
-      setChapter(data.chapter);
+
+      // Process the stream
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No response body");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let accumulatedProse = "";
+      let sceneImageUrl = "";
+      let fromCache = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              if (data.type === "meta") {
+                sceneImageUrl = data.sceneImageUrl;
+                fromCache = data.fromCache;
+                setIsLoadingChapter(false);
+                setIsStreaming(!fromCache);
+                // Set initial chapter with scene image
+                setChapter({
+                  number: pt.current_chapter,
+                  prose: "",
+                  choices: null,
+                  sceneImageUrl,
+                  cardQuote: null,
+                  cardQuoteSpeaker: null,
+                });
+              } else if (data.type === "prose") {
+                // Cached content - full prose at once
+                accumulatedProse = data.text;
+                setStreamedProse(data.text);
+              } else if (data.type === "chunk") {
+                // Streaming content - append chunk
+                accumulatedProse += data.text;
+                setStreamedProse(accumulatedProse);
+              } else if (data.type === "choices") {
+                // Generation complete
+                setIsStreaming(false);
+                setChapter({
+                  number: pt.current_chapter,
+                  prose: accumulatedProse,
+                  choices: data.choices,
+                  sceneImageUrl,
+                  cardQuote: data.cardQuote || null,
+                  cardQuoteSpeaker: data.cardQuoteSpeaker || null,
+                });
+                // Start prefetching next chapter
+                prefetchNextChapter(pt, pt.current_chapter + 1);
+              } else if (data.type === "error") {
+                throw new Error(data.error);
+              }
+            } catch (e) {
+              if (e instanceof SyntaxError) continue; // Skip malformed JSON
+              throw e;
+            }
+          }
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
       setIsLoadingChapter(false);
+      setIsStreaming(false);
     }
-  }, [playthroughId]);
+  }, [playthroughId, prefetchNextChapter]);
 
   useEffect(() => {
     async function init() {
@@ -876,7 +982,7 @@ export default function ReaderPage() {
         {/* Chapter Content */}
         {!showPaywall && !showSignIn && (
         <article className="max-w-2xl mx-auto px-6 py-12">
-          {isLoadingChapter ? (
+          {isLoadingChapter && !chapter ? (
             <div className="text-center py-20">
               <p className="font-serif text-xl text-cream italic animate-pulse">
                 Setting the scene...
@@ -884,15 +990,18 @@ export default function ReaderPage() {
             </div>
           ) : chapter ? (
             <>
-              {/* Prose */}
+              {/* Prose - use streamedProse during streaming, chapter.prose after */}
               <div className="prose-lirae">
-                {chapter.prose.split("\n\n").map((paragraph, i) => (
+                {(isStreaming ? streamedProse : chapter.prose).split("\n\n").filter(p => p.trim()).map((paragraph, i) => (
                   <p key={i}>{paragraph}</p>
                 ))}
+                {isStreaming && (
+                  <span className="inline-block w-2 h-5 bg-wine animate-pulse ml-1" />
+                )}
               </div>
 
-              {/* Choices */}
-              {chapter.choices && chapter.choices.length > 0 && (
+              {/* Choices - only show when not streaming */}
+              {!isStreaming && chapter.choices && chapter.choices.length > 0 && (
                 <div className="mt-12 pt-8 border-t border-warm-gray">
                   <p className="text-cream-muted text-center mb-6 font-serif italic">
                     What do you do?
@@ -917,7 +1026,7 @@ export default function ReaderPage() {
               )}
 
               {/* No choices - Chapter 5 just continues */}
-              {(!chapter.choices || chapter.choices.length === 0) && playthrough && playthrough.current_chapter === 5 && (
+              {!isStreaming && (!chapter.choices || chapter.choices.length === 0) && playthrough && playthrough.current_chapter === 5 && (
                 <div className="mt-12 pt-8 border-t border-warm-gray text-center">
                   <button
                     onClick={() => {
@@ -936,7 +1045,7 @@ export default function ReaderPage() {
               )}
 
               {/* Chapter 9 - Free text input */}
-              {(!chapter.choices || chapter.choices.length === 0) && playthrough && playthrough.current_chapter === 9 && (
+              {!isStreaming && (!chapter.choices || chapter.choices.length === 0) && playthrough && playthrough.current_chapter === 9 && (
                 <div className="mt-12 pt-8 border-t border-warm-gray">
                   <p className="text-cream text-center mb-4 font-serif italic text-lg">
                     Before everything changes — what do you say to him?
@@ -984,7 +1093,7 @@ export default function ReaderPage() {
               )}
 
               {/* End of story */}
-              {playthrough && playthrough.current_chapter === 10 && (!chapter?.choices || chapter.choices.length === 0) && (
+              {!isStreaming && playthrough && playthrough.current_chapter === 10 && (!chapter?.choices || chapter.choices.length === 0) && (
                 <EndingCard
                   ending={playthrough.ending}
                   vibe={playthrough.vibe}

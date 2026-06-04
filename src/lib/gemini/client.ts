@@ -27,6 +27,118 @@ function isRetryableError(status: number): boolean {
   return status === 503 || status === 429 || status === 500 || status === 502 || status === 504;
 }
 
+// Streaming version that yields text chunks as they arrive
+export async function* generateTextStream(prompt: string): AsyncGenerator<string, void, unknown> {
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured");
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:streamGenerateContent?alt=sse`,
+    {
+      method: "POST",
+      headers: {
+        "x-goog-api-key": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.9,
+          topP: 0.95,
+          topK: 40,
+          maxOutputTokens: 8192,
+        },
+        safetySettings: [
+          {
+            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            threshold: "BLOCK_ONLY_HIGH",
+          },
+          {
+            category: "HARM_CATEGORY_HATE_SPEECH",
+            threshold: "BLOCK_ONLY_HIGH",
+          },
+          {
+            category: "HARM_CATEGORY_HARASSMENT",
+            threshold: "BLOCK_ONLY_HIGH",
+          },
+          {
+            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+            threshold: "BLOCK_ONLY_HIGH",
+          },
+        ],
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error("No response body");
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Process complete SSE events
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || ""; // Keep incomplete line in buffer
+
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr && jsonStr !== "[DONE]") {
+            try {
+              const data = JSON.parse(jsonStr);
+              const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (text) {
+                yield text;
+              }
+            } catch {
+              // Skip malformed JSON
+            }
+          }
+        }
+      }
+    }
+
+    // Process any remaining data in buffer
+    if (buffer.startsWith("data: ")) {
+      const jsonStr = buffer.slice(6).trim();
+      if (jsonStr && jsonStr !== "[DONE]") {
+        try {
+          const data = JSON.parse(jsonStr);
+          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            yield text;
+          }
+        } catch {
+          // Skip malformed JSON
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 export async function generateText(prompt: string): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
 
