@@ -64,7 +64,7 @@ function SignInModal({
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/read/${playthroughId}`,
+          emailRedirectTo: `${window.location.origin}/auth/confirm?next=/read/${playthroughId}`,
         },
       });
 
