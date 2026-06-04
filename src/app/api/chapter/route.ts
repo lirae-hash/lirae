@@ -14,6 +14,7 @@ const ADVENTURES: Record<string, typeof THE_KITCHEN> = {
 // Emails with full access (bypass paywall)
 const FULL_ACCESS_EMAILS = [
   "maknight142@gmail.com",
+  "csanandaji@gmail.com",
 ];
 
 // Map chapter numbers to scene archetypes for image lookup
