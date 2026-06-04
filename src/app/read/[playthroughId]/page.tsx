@@ -971,7 +971,13 @@ export default function ReaderPage() {
               {/* Prose */}
               <div className="prose-lirae">
                 {chapter.prose.split("\n\n").filter(p => p.trim()).map((paragraph, i) => (
-                  <p key={i}>{paragraph}</p>
+                  <p
+                    key={i}
+                    className="animate-fadeIn"
+                    style={{ animationDelay: `${i * 80}ms`, animationFillMode: "both" }}
+                  >
+                    {paragraph}
+                  </p>
                 ))}
               </div>
 
