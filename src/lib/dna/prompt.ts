@@ -153,34 +153,63 @@ CHOICE_3: You [emotional action/stance].` : ""}
 
 Write real sentences that fit this story — no brackets, no placeholders.`
     : "This chapter has no choices — end on the emotional beat itself."}
+${chapterNo === 10 ? `
+== SHAREABLE CARD QUOTE ==
+After the prose, on a new line, provide a single memorable quote from this chapter for the reader's shareable ending card.
+Pick the most emotionally resonant line — a declaration of love, a vulnerable confession, or a defining moment.
+Format EXACTLY like this:
 
-No headings, no preamble, no meta-commentary. Just the prose${beat.hasChoices ? ", then the choices on separate lines" : ""}.`;
+CARD_QUOTE: "[The exact line from the chapter]"
+CARD_QUOTE_SPEAKER: [speaker name - either "${settingSheet.heroName}" if he said it, "${protagonistName || 'Her'}" if she said it, or "Narration" if it's narrative description]
+
+Choose a line that will make the reader want to share it. His declarations of love are usually most shareable.` : ""}
+
+No headings, no preamble, no meta-commentary. Just the prose${beat.hasChoices ? ", then the choices on separate lines" : ""}${chapterNo === 10 ? ", then the card quote" : ""}.`;
 
   return prompt;
 }
 
-export function parseChapterResponse(response: string): {
+export interface ParsedChapterResponse {
   prose: string;
   choices: { id: string; text: string; tag: "open" | "guarded" }[] | null;
-} {
+  cardQuote: string | null;
+  cardQuoteSpeaker: string | null;
+}
+
+export function parseChapterResponse(response: string): ParsedChapterResponse {
+  // Extract card quote if present (for chapter 10)
+  const cardQuoteMatch = response.match(/^CARD_QUOTE:\s*"?([^"]+)"?\s*$/im);
+  const cardQuoteSpeakerMatch = response.match(/^CARD_QUOTE_SPEAKER:\s*(.+)$/im);
+
+  const cardQuote = cardQuoteMatch ? cardQuoteMatch[1].trim() : null;
+  const cardQuoteSpeaker = cardQuoteSpeakerMatch ? cardQuoteSpeakerMatch[1].trim() : null;
+
+  // Remove card quote lines from response for prose extraction
+  let cleanResponse = response
+    .replace(/^CARD_QUOTE:.*$/gim, "")
+    .replace(/^CARD_QUOTE_SPEAKER:.*$/gim, "")
+    .trim();
+
   // Look for choice markers - support both CHOICE_1/2/3 and CHOICE_A/B/C formats
   // Each choice is on its own line
   const choicePattern = /^CHOICE_([123ABC]):\s*(.+)$/gim;
-  const matches = [...response.matchAll(choicePattern)];
+  const matches = [...cleanResponse.matchAll(choicePattern)];
 
   if (matches.length === 0) {
     // No choices found — this is a no-choice beat
     return {
-      prose: response.trim(),
+      prose: cleanResponse.trim(),
       choices: null,
+      cardQuote,
+      cardQuoteSpeaker,
     };
   }
 
   // Extract prose (everything before the first CHOICE_)
-  const firstChoiceIndex = response.search(/^CHOICE_[123ABC]:/im);
+  const firstChoiceIndex = cleanResponse.search(/^CHOICE_[123ABC]:/im);
   const prose = firstChoiceIndex > 0
-    ? response.slice(0, firstChoiceIndex).trim()
-    : response.trim();
+    ? cleanResponse.slice(0, firstChoiceIndex).trim()
+    : cleanResponse.trim();
 
   // Map choice identifiers to tags
   // Choice 1/A = vulnerable/open, Choice 2/B = guarded/strategic, Choice 3/C = unexpected/open
@@ -199,5 +228,5 @@ export function parseChapterResponse(response: string): {
     tag: choiceTags[match[1].toUpperCase()] || "guarded",
   }));
 
-  return { prose, choices };
+  return { prose, choices, cardQuote, cardQuoteSpeaker };
 }

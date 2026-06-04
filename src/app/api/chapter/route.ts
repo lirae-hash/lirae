@@ -116,12 +116,15 @@ export async function POST(request: Request) {
       .single();
 
     if (cached) {
+      // Note: cached chapters don't have cardQuote - only freshly generated ch10 does
       return NextResponse.json({
         chapter: {
           number: chapterNo,
           prose: cached.prose,
           choices: cached.choices,
           sceneImageUrl: cached.scene_image_url || sceneImageUrl,
+          cardQuote: null,
+          cardQuoteSpeaker: null,
           fromCache: true,
         },
       });
@@ -147,11 +150,17 @@ export async function POST(request: Request) {
     console.log("=== RAW GEMINI RESPONSE (last 500 chars) ===");
     console.log(response.slice(-500));
 
-    const { prose, choices } = parseChapterResponse(response);
+    const { prose, choices, cardQuote, cardQuoteSpeaker } = parseChapterResponse(response);
     console.log("=== PARSED CHOICES ===");
     console.log(JSON.stringify(choices, null, 2));
+    if (chapterNo === 10) {
+      console.log("=== CARD QUOTE ===");
+      console.log("Quote:", cardQuote);
+      console.log("Speaker:", cardQuoteSpeaker);
+    }
 
     // Cache the chapter
+    // Note: card_quote fields not cached yet (would need DB migration)
     const { error: cacheError } = await supabase.from("chapters_cache").insert({
       adventure_id: playthrough.adventure_id,
       chapter_no: chapterNo,
@@ -174,6 +183,8 @@ export async function POST(request: Request) {
         prose,
         choices,
         sceneImageUrl,
+        cardQuote,
+        cardQuoteSpeaker,
         fromCache: false,
       },
     });

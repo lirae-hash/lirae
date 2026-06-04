@@ -45,8 +45,8 @@ function EndingCard({
   adventureId,
   heroName,
   protagonistName,
-  finalWords,
-  lastLine,
+  cardQuote,
+  cardQuoteSpeaker,
   playthroughId,
 }: {
   ending: string | null;
@@ -56,8 +56,8 @@ function EndingCard({
   adventureId: string;
   heroName: string;
   protagonistName: string | null;
-  finalWords: string | null;
-  lastLine: string | null;
+  cardQuote: string | null;
+  cardQuoteSpeaker: string | null;
   playthroughId: string;
 }) {
   const router = useRouter();
@@ -66,15 +66,46 @@ function EndingCard({
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [canShare, setCanShare] = useState(false);
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
 
   const config = ENDING_CONFIG[ending as keyof typeof ENDING_CONFIG] || ENDING_CONFIG.hfn;
   const archetypeName = ARCHETYPE_NAMES[archetype] || "The Love Interest";
 
-  // Determine the hero quote - prioritize user's final words, then last line, then fallback
-  const heroQuote = finalWords || lastLine || config.fallbackQuote;
+  // Use the AI-selected card quote from the chapter, with proper attribution
+  // cardQuoteSpeaker will be the hero's name, protagonist's name, or "Narration"
+  const displayQuote = cardQuote || config.fallbackQuote;
+
+  // Format attribution: show speaker name unless it's narration
+  let quoteAttribution: string | null = null;
+  if (cardQuoteSpeaker && cardQuoteSpeaker.toLowerCase() !== "narration") {
+    // If speaker is "Her" or protagonist name, use protagonist name or "Me"
+    if (cardQuoteSpeaker.toLowerCase() === "her" || cardQuoteSpeaker === protagonistName) {
+      quoteAttribution = protagonistName || "Me";
+    } else {
+      quoteAttribution = cardQuoteSpeaker;
+    }
+  }
 
   // Scene image URL for the resolution scene
   const sceneImageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scene-images/${adventureId}/resolution_${vibe}.png`;
+
+  // Load and convert scene image to base64 for html-to-image compatibility
+  useEffect(() => {
+    async function loadImage() {
+      try {
+        const response = await fetch(sceneImageUrl);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImageDataUrl(reader.result as string);
+        };
+        reader.readAsDataURL(blob);
+      } catch (err) {
+        console.error("Failed to load scene image:", err);
+      }
+    }
+    loadImage();
+  }, [sceneImageUrl]);
 
   // Check if Web Share API is available
   useEffect(() => {
@@ -128,7 +159,7 @@ function EndingCard({
 
       await navigator.share({
         title: `My ${config.title} ending`,
-        text: `I just finished "${adventureTitle}" on Lirae. ${heroQuote.slice(0, 100)}...`,
+        text: `I just finished "${adventureTitle}" on Lirae. ${displayQuote.slice(0, 100)}...`,
         files: [file],
       });
     } catch (err) {
@@ -177,20 +208,22 @@ function EndingCard({
           backgroundColor: "#0f0f0f",
         }}
       >
-        {/* Scene image background */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundImage: `url(${sceneImageUrl})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            opacity: 0.4,
-          }}
-        />
+        {/* Scene image background (base64 for html-to-image compatibility) */}
+        {imageDataUrl && (
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundImage: `url(${imageDataUrl})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              opacity: 0.35,
+            }}
+          />
+        )}
         {/* Dark gradient overlay for readability */}
         <div
           style={{
@@ -281,19 +314,21 @@ function EndingCard({
                 margin: 0,
               }}
             >
-              &ldquo;{heroQuote}&rdquo;
+              &ldquo;{displayQuote}&rdquo;
             </p>
-            <p
-              style={{
-                color: vibeAccents[vibe] || vibeAccents.dark,
-                fontSize: "14px",
-                fontFamily: "Georgia, serif",
-                marginTop: "12px",
-                textAlign: "right",
-              }}
-            >
-              — {heroName}
-            </p>
+            {quoteAttribution && (
+              <p
+                style={{
+                  color: vibeAccents[vibe] || vibeAccents.dark,
+                  fontSize: "14px",
+                  fontFamily: "Georgia, serif",
+                  marginTop: "12px",
+                  textAlign: "right",
+                }}
+              >
+                — {quoteAttribution}
+              </p>
+            )}
           </div>
 
           {/* Adventure title */}
@@ -427,6 +462,8 @@ interface Chapter {
   prose: string;
   choices: Choice[] | null;
   sceneImageUrl: string | null;
+  cardQuote: string | null;
+  cardQuoteSpeaker: string | null;
 }
 
 interface Playthrough {
@@ -768,8 +805,8 @@ export default function ReaderPage() {
                   adventureId={playthrough.adventure_id}
                   heroName={playthrough.adventure_id === "the-kitchen" ? "Julian" : "Him"}
                   protagonistName={playthrough.protagonist_name}
-                  finalWords={playthrough.final_words}
-                  lastLine={chapter?.prose ? chapter.prose.split("\n\n").pop() || null : null}
+                  cardQuote={chapter?.cardQuote || null}
+                  cardQuoteSpeaker={chapter?.cardQuoteSpeaker || null}
                   playthroughId={playthroughId}
                 />
               )}
