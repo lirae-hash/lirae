@@ -131,7 +131,7 @@ export async function POST(request: Request) {
     const choiceLog = (playthrough.choice_log || []) as ChoiceLogEntry[];
     const pathHash = hashChoiceLog(choiceLog);
 
-    // Check cache first
+    // Check cache first (keyed by adventure, chapter, vibe, spice, archetype, and path)
     const { data: cached } = await supabase
       .from("chapters_cache")
       .select("*")
@@ -139,6 +139,7 @@ export async function POST(request: Request) {
       .eq("chapter_no", chapterNo)
       .eq("vibe", playthrough.vibe)
       .eq("spice", playthrough.spice)
+      .eq("archetype", playthrough.archetype)
       .eq("path_hash", pathHash)
       .single();
 
@@ -191,6 +192,7 @@ export async function POST(request: Request) {
       chapter_no: chapterNo,
       vibe: playthrough.vibe,
       spice: playthrough.spice,
+      archetype: playthrough.archetype,
       path_hash: pathHash,
       prose,
       choices,

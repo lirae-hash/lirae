@@ -153,6 +153,7 @@ export interface Database {
           chapter_no: number;
           vibe: Vibe;
           spice: SpiceLevel;
+          archetype: HeroArchetype | null;
           path_hash: string;
           prose: string;
           choices: Json | null;
@@ -165,6 +166,7 @@ export interface Database {
           chapter_no: number;
           vibe: Vibe;
           spice: SpiceLevel;
+          archetype?: HeroArchetype | null;
           path_hash: string;
           prose: string;
           choices?: Json | null;
@@ -177,6 +179,7 @@ export interface Database {
           chapter_no?: number;
           vibe?: Vibe;
           spice?: SpiceLevel;
+          archetype?: HeroArchetype | null;
           path_hash?: string;
           prose?: string;
           choices?: Json | null;
