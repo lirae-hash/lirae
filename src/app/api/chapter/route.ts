@@ -4,12 +4,34 @@ import { generateText } from "@/lib/gemini/client";
 import { buildChapterPrompt, parseChapterResponse } from "@/lib/dna/prompt";
 import { THE_KITCHEN } from "@/lib/dna/settings/the-kitchen";
 import crypto from "crypto";
-import type { ChoiceLogEntry, Vibe, SpiceLevel } from "@/types/database";
+import type { ChoiceLogEntry, Vibe, SpiceLevel, HeroArchetype } from "@/types/database";
 
 // Map adventure IDs to their setting data
 const ADVENTURES: Record<string, typeof THE_KITCHEN> = {
   "the-kitchen": THE_KITCHEN,
 };
+
+// Map chapter numbers to scene archetypes for image lookup
+const CHAPTER_ARCHETYPES: Record<number, string> = {
+  1: "arrival",
+  2: "proximity",
+  3: "truce",
+  4: "crack",
+  5: "almost",
+  6: "setback",
+  7: "reckoning",
+  8: "confession",
+  9: "surrender",
+  10: "resolution",
+};
+
+function getSceneImageUrl(adventureId: string, chapterNo: number, vibe: string): string {
+  const archetype = CHAPTER_ARCHETYPES[chapterNo];
+  if (!archetype) return "";
+
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  return `${baseUrl}/storage/v1/object/public/scene-images/${adventureId}/${archetype}_${vibe}.png`;
+}
 
 function hashChoiceLog(choiceLog: ChoiceLogEntry[]): string {
   const str = JSON.stringify(choiceLog);
@@ -38,10 +60,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch playthrough
+    // Fetch playthrough with adventure details
     const { data: playthrough, error: ptError } = await supabase
       .from("playthroughs")
-      .select("*")
+      .select("*, adventures(cover_image_url)")
       .eq("id", playthroughId)
       .eq("reader_id", user.id)
       .single();
@@ -49,6 +71,9 @@ export async function POST(request: Request) {
     if (ptError || !playthrough) {
       return NextResponse.json({ error: "Playthrough not found" }, { status: 404 });
     }
+
+    // Get scene image URL based on chapter archetype + vibe
+    const sceneImageUrl = getSceneImageUrl(playthrough.adventure_id, chapterNo, playthrough.vibe);
 
     // Check paywall (chapters 4+ require purchase)
     if (chapterNo >= 4) {
@@ -96,7 +121,7 @@ export async function POST(request: Request) {
           number: chapterNo,
           prose: cached.prose,
           choices: cached.choices,
-          sceneImageUrl: cached.scene_image_url,
+          sceneImageUrl: cached.scene_image_url || sceneImageUrl,
           fromCache: true,
         },
       });
@@ -107,13 +132,23 @@ export async function POST(request: Request) {
       chapterNo,
       settingSheet,
       vibe: playthrough.vibe as Vibe,
+      archetype: (playthrough.archetype as HeroArchetype) || "brooding",
       spice: playthrough.spice as SpiceLevel,
       protagonistName: playthrough.protagonist_name,
       choiceLog,
+      ending: chapterNo === 10 ? (playthrough.ending as "hea" | "hfn" | "heartbreak" | null) : null,
     });
 
+    console.log("=== CHAPTER GENERATION DEBUG ===");
+    console.log("Chapter:", chapterNo);
+
     const response = await generateText(prompt);
+    console.log("=== RAW GEMINI RESPONSE (last 500 chars) ===");
+    console.log(response.slice(-500));
+
     const { prose, choices } = parseChapterResponse(response);
+    console.log("=== PARSED CHOICES ===");
+    console.log(JSON.stringify(choices, null, 2));
 
     // Cache the chapter
     const { error: cacheError } = await supabase.from("chapters_cache").insert({
@@ -124,7 +159,7 @@ export async function POST(request: Request) {
       path_hash: pathHash,
       prose,
       choices,
-      scene_image_url: null, // Will be populated in M4
+      scene_image_url: sceneImageUrl,
     });
 
     if (cacheError) {
@@ -137,7 +172,7 @@ export async function POST(request: Request) {
         number: chapterNo,
         prose,
         choices,
-        sceneImageUrl: null,
+        sceneImageUrl,
         fromCache: false,
       },
     });

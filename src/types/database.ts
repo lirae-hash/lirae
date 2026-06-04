@@ -10,6 +10,7 @@ export type Vibe = "dark" | "gold" | "rose" | "sage";
 export type SpiceLevel = 1 | 2 | 3;
 export type Ending = "hea" | "hfn" | "heartbreak";
 export type PurchaseStatus = "pending" | "paid" | "refunded";
+export type HeroArchetype = "brooding" | "cinnamon" | "rogue" | "protector" | "tortured" | "golden";
 
 export interface ChoiceLogEntry {
   id: string;
@@ -87,6 +88,7 @@ export interface Database {
           reader_id: string;
           adventure_id: string;
           vibe: Vibe;
+          archetype: HeroArchetype;
           spice: SpiceLevel;
           protagonist_name: string | null;
           choice_log: ChoiceLogEntry[];
@@ -100,6 +102,7 @@ export interface Database {
           reader_id: string;
           adventure_id: string;
           vibe: Vibe;
+          archetype: HeroArchetype;
           spice: SpiceLevel;
           protagonist_name?: string | null;
           choice_log?: ChoiceLogEntry[];
@@ -113,6 +116,7 @@ export interface Database {
           reader_id?: string;
           adventure_id?: string;
           vibe?: Vibe;
+          archetype?: HeroArchetype;
           spice?: SpiceLevel;
           protagonist_name?: string | null;
           choice_log?: ChoiceLogEntry[];

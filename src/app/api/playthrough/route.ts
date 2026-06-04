@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import type { Vibe, SpiceLevel } from "@/types/database";
+import type { Vibe, SpiceLevel, HeroArchetype } from "@/types/database";
 
 export async function POST(request: Request) {
   try {
@@ -12,26 +12,32 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { adventureId, vibe, spice, protagonistName } = body as {
+    const { adventureId, vibe, archetype, spice, protagonistName } = body as {
       adventureId: string;
       vibe: Vibe;
+      archetype: HeroArchetype;
       spice: SpiceLevel;
       protagonistName?: string;
     };
 
-    if (!adventureId || !vibe || !spice) {
+    if (!adventureId || !vibe || !archetype || !spice) {
       return NextResponse.json(
-        { error: "Missing required fields: adventureId, vibe, spice" },
+        { error: "Missing required fields: adventureId, vibe, archetype, spice" },
         { status: 400 }
       );
     }
 
-    // Validate vibe and spice
+    // Validate vibe, archetype, and spice
     const validVibes: Vibe[] = ["dark", "gold", "rose", "sage"];
+    const validArchetypes: HeroArchetype[] = ["brooding", "cinnamon", "rogue", "protector", "tortured", "golden"];
     const validSpice: SpiceLevel[] = [1, 2, 3];
 
     if (!validVibes.includes(vibe)) {
       return NextResponse.json({ error: "Invalid vibe" }, { status: 400 });
+    }
+
+    if (!validArchetypes.includes(archetype)) {
+      return NextResponse.json({ error: "Invalid archetype" }, { status: 400 });
     }
 
     if (!validSpice.includes(spice)) {
@@ -45,6 +51,7 @@ export async function POST(request: Request) {
         reader_id: user.id,
         adventure_id: adventureId,
         vibe,
+        archetype,
         spice,
         protagonist_name: protagonistName || null,
         choice_log: [],
@@ -81,10 +88,10 @@ export async function GET(request: Request) {
     const playthroughId = searchParams.get("id");
 
     if (playthroughId) {
-      // Get specific playthrough
+      // Get specific playthrough with adventure title
       const { data, error } = await supabase
         .from("playthroughs")
-        .select("*")
+        .select("*, adventures(title)")
         .eq("id", playthroughId)
         .eq("reader_id", user.id)
         .single();
@@ -93,7 +100,14 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: error.message }, { status: 404 });
       }
 
-      return NextResponse.json({ playthrough: data });
+      // Flatten adventure title
+      const playthrough = {
+        ...data,
+        adventure_title: (data.adventures as { title: string } | null)?.title || "Unknown Adventure",
+      };
+      delete (playthrough as Record<string, unknown>).adventures;
+
+      return NextResponse.json({ playthrough });
     }
 
     // Get all user's playthroughs

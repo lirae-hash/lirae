@@ -1,4 +1,4 @@
-import type { SpiceLevel, Vibe } from "@/types/database";
+import type { SpiceLevel, Vibe, HeroArchetype } from "@/types/database";
 
 export interface Beat {
   number: number;
@@ -21,30 +21,68 @@ export const TROPE = "enemies-to-lovers";
 export const TROPE_LABEL = "Enemies to Lovers";
 
 export const VOICE_RULES = `
-**POV:** Close third person. Stay in her head. We feel everything she feels, including things she won't admit to herself.
+**POV: SECOND PERSON. The reader IS the protagonist. This is the most important rule.**
 
-**Tense:** Past tense.
+Write in second person, present tense: "You feel him before you see him." Never "she." The reader is not watching a character — she *is* the character. Every chapter is addressed to "you."
 
-**Her character (fixed across all adventures):**
-She is intelligent, competent, and privately tired of having to prove it. She does not shrink. She is not naive. She has been underestimated before and she will not let it happen again. She is also, underneath the armor, someone who wants things very much — she just doesn't say so.
+- Use **"you" / "your"** throughout. The love interest (Julian) is "he."
+- **Present tense** — it heightens the you-are-here immediacy. ("He looks up. His eyes find yours.")
+- Stay inside *your* head — the reader's. We feel what you feel: the awareness, the irritation, the pull you don't want to admit to.
+- **Never assign the reader a fixed personality or fixed inner reactions that her choices haven't earned.** Give her the *situation* and *sensory experience* richly; leave her interpretation and response open enough that her choices fill them in.
+- **Use her name sparingly and only if she provided one.** If a protagonist name exists, others address her by it in dialogue. If no name, never invent one — others address her by role or simply speak to her.
+
+**Who "you" are (the frame, not the personality):**
+You are good at what you do — genuinely, provably good — and a little tired of having to prove it. You've been underestimated before. You don't shrink and you don't flinch easily. Beneath that, you want things you don't say out loud.
 
 **His character (fixed across all adventures):**
-Julian Voss. Controlled. Composed to the point of maddening. Not cruel — precise. He chooses his words carefully and says less than he means. He has done something that hurt her, and he knows it. Whether he regrets it is the question the adventure slowly answers.
+Julian Voss. Controlled. Composed to the point of maddening. Not cruel — precise. He chooses his words carefully and says less than he means. He has done something that hurt you, and he knows it. Whether he regrets it is the question the adventure slowly answers.
 
 **Prose style reference:** Write like Emily Henry or Colleen Hoover — real, adult, emotionally precise. Not YA. Not purple. Not overwrought. The restraint is what makes it hit.
 
+== PAGE-TURNER MECHANICS (critical for reader retention) ==
+
+**CHAPTER OPENINGS — Start in motion, not description:**
+- Open on conflict, dialogue, or a sharp question — NOT an establishing shot
+- Drop the reader into the charged moment. Backfill context after you've hooked them.
+- First line should create immediate tension or curiosity
+- BAD: "The kitchen is quiet in the late afternoon light..."
+- GOOD: "He's already watching when you walk in."
+
+**CHAPTER ENDINGS — Every chapter must end on an OPEN LOOP:**
+- The last line should make the reader NEED the next chapter
+- End on: an unanswered question, something unsaid, a door opening, a line that demands response
+- Never resolve the chapter's tension before the choice — leave something dangling
+- BAD: "You walk away, feeling settled."
+- GOOD: "He says your name. Just your name. And doesn't say anything else."
+
+**DIALOGUE AND BANTER — This is where readers stay:**
+- More sharp exchanges, less description. Readers stay for the voices.
+- Subtext > text. What they DON'T say is where the heat lives.
+- Let them spar. Let them deflect. Let the dialogue crackle.
+- Every exchange should have an undercurrent — flirtation, challenge, or wound.
+
+**INTERNAL VOICE — Sharp, specific, a little defensive:**
+- Your internal reactions should be wry, specific, contradictory
+- Not just "you notice his hands" but a sharp thought about noticing
+- Let her be funny. Let her be defensive. Let her catch herself.
+- "You hate that you noticed. You hate more that you're still noticing."
+
 **What to avoid:**
-- Describing her appearance to herself in mirrors
-- "She didn't know why she felt this way" (she does know)
-- His eyes changing color
+- Slipping into "she" — you are always "you"
+- Slipping into past tense — stay present
+- Describing the reader's own appearance (she can't see herself)
+- Assigning inner feelings her choices haven't earned ("you felt your heart melt") — show the moment, let her feel it
+- "You didn't know why you felt this way" (you do)
 - Telling the reader how to feel ("it was electrifying")
 - Dialogue that exists only to explain backstory
+- Opening with pure atmosphere/description before anything happens
+- Ending a chapter on resolution instead of an open loop
 `;
 
 export const SPICE_RULES: Record<SpiceLevel, string> = {
-  1: "Sweet warmth — Emotional tension only. Physical awareness limited to presence and voice. No body-scanning.",
-  2: "Warm tension — Charged glances. Awareness of proximity. She notices his hands, his jaw, his stillness. Restrained.",
-  3: "Slow burn — Electric. She is aware of exactly how close he is at all times. Almost-touches. Charged dialogue with subtext.",
+  1: "Sweet warmth — Emotional tension only. Physical awareness limited to his presence and voice. No body-scanning.",
+  2: "Warm tension — Charged glances. Awareness of how close he is. You notice his hands, his jaw, his stillness. Restrained.",
+  3: "Slow burn — Electric. You are aware of exactly how close he is at all times. Almost-touches. Charged dialogue with subtext.",
 };
 
 export const VIBE_RULES: Record<Vibe, string> = {
@@ -54,193 +92,221 @@ export const VIBE_RULES: Record<Vibe, string> = {
   sage: "Emerald Envy — Earthy richness, tradition as weight and legacy. The lushness of place and season and memory.",
 };
 
+export const ARCHETYPE_RULES: Record<HeroArchetype, { name: string; behavior: string }> = {
+  brooding: {
+    name: "The Brooding Rival",
+    behavior: "Controlled, withholding, cracks slowly, says less than he means. Every word is measured. When he finally opens up, it lands like a confession. His competence is intimidating. His rare moments of vulnerability are devastating.",
+  },
+  cinnamon: {
+    name: "The Cinnamon Roll",
+    behavior: "Warm, openly kind, soft under any gruffness. He makes you feel safe without asking anything in return. His devotion shows in actions, not demands. He notices what you need before you say it. When he's protective, it's gentle, not possessive.",
+  },
+  rogue: {
+    name: "The Charming Rogue",
+    behavior: "Witty, flirtatious, deflects with humor, banter-forward. He makes you laugh even when you're trying to be mad. Every exchange is a game he clearly enjoys. Under the charm is someone who pays closer attention than he lets on.",
+  },
+  protector: {
+    name: "The Protector",
+    behavior: "Steady, loyal, quietly intense, action over words. He puts himself between you and trouble without making it about him. His strength is calm, not aggressive. When he speaks, it matters. His love is shown in what he does, not what he says.",
+  },
+  tortured: {
+    name: "The Tortured Soul",
+    behavior: "Guarded by real pain, intense, redeemable. The walls are there for a reason, and lowering them costs him something. His intensity can be overwhelming. He fights the pull toward you because he doesn't think he deserves it. When he breaks, it's raw.",
+  },
+  golden: {
+    name: "The Golden Boy",
+    behavior: "Effortless, admired, has everything—and is surprised by how much he wants you. Others want him; he wants *you*. His privilege doesn't make him unkind, but he's used to getting what he wants. The vulnerability is that you make him uncertain.",
+  },
+};
+
 export const BEATS: Beat[] = [
   {
     number: 1,
     name: "The Clash",
     title: "The Rival",
-    emotionalFunction: "Establish the enemy dynamic and the attraction simultaneously. She must feel both in the same moment — the threat and the pull.",
+    emotionalFunction: "Establish the enemy dynamic and the attraction simultaneously — you feel both in the same moment, the threat and the pull. AND orient the reader: who you are here, what you want, what's at stake.",
     fixedElements: [
-      "She arrives somewhere and senses him before she sees him",
-      "When she sees him, she recognises who he is immediately",
-      "The power imbalance is established — he has something over her professionally",
-      "She is shown to be formidable. She does not break. She does not flinch visibly.",
-      "He notices her noticing him. He is not surprised to see her.",
-      "The chapter ends before any real conversation happens — just the fact of him",
+      "CRITICAL — first 3 paragraphs must orient: Para 1 establishes where you are and why you're here (your role, your first day). Para 1-2 plants what you want — the concrete goal you came here to achieve. Then introduce the history — what he did, what it cost you.",
+      "You arrive somewhere and sense him before you see him",
+      "When you see him, you recognise who he is immediately — and the reader is told who he is and what he did to you",
+      "The power imbalance is established — he has something over you",
+      "You are formidable. You don't break. You don't flinch visibly. (Show this through what you do, not by narrating your personality.)",
+      "He notices you noticing him. He is not surprised to see you.",
+      "The chapter ends before any real conversation — just the fact of him, and the choice of how you meet this",
     ],
-    variableSlots: ["LOCATION", "HIS ROLE", "HER ROLE", "WHAT HE DID", "THE DETAIL"],
+    variableSlots: ["LOCATION", "HIS ROLE", "YOUR ROLE", "WHAT YOU WANT", "WHAT HE DID", "THE DETAIL"],
     hookType: "revelation",
-    hookFunction: "Something she learns at the end of this chapter changes the power dynamic. It's not what she expected.",
+    hookFunction: "Something you learn at the end of this chapter changes the power dynamic. It's not what you expected.",
     hasChoices: true,
     choiceDescriptions: {
-      a: "Bold/direct — she initiates contact on her own terms",
-      b: "Strategic — she gathers information before moving",
-      c: "Unexpected — she does something that reveals more about her than him",
+      a: "You let him see you seeing him — hold his gaze, don't look away first",
+      b: "You give nothing — keep your face neutral, your walls intact",
+      c: "You let something slip — a flash of the anger, the hurt, something real",
     },
   },
   {
     number: 2,
     name: "Forced Proximity",
     title: "No Escape",
-    emotionalFunction: "Remove the option to avoid each other. They must now exist in close quarters. The irritation is real. So is everything else.",
+    emotionalFunction: "Remove the option to avoid each other. You must now exist in close quarters. The irritation is real. So is everything else.",
     fixedElements: [
-      "A situation forces them into physical or professional proximity",
-      "She tries to establish distance or rules; he does not fight it but doesn't help her either",
+      "A situation forces you into physical or professional proximity",
+      "You try to establish distance or rules; he does not fight it but doesn't help you either",
       "One moment of accidental closeness — not romantic, just physical reality",
-      "She catches herself noticing something about him that is not his professional role",
-      "She immediately rationalises it",
+      "You catch yourself noticing something about him that is not his professional role",
+      "You immediately rationalise it",
     ],
-    variableSlots: ["PROXIMITY CATALYST", "CLOSE QUARTERS SCENE", "THE THING SHE NOTICES"],
+    variableSlots: ["PROXIMITY CATALYST", "CLOSE QUARTERS SCENE", "THE THING YOU NOTICE"],
     hookType: "cliffhanger",
     hookFunction: "Something external cuts the chapter at the worst possible moment — the situation just got harder to escape.",
     hasChoices: true,
     choiceDescriptions: {
-      a: "She leans into the proximity — makes it her advantage",
-      b: "She establishes a clear professional boundary, out loud",
+      a: "You don't step back — let the closeness be his problem, not yours",
+      b: "You put space between you — reclaim the boundary he crossed",
     },
   },
   {
     number: 3,
     name: "Reluctant Truce",
     title: "Fine",
-    emotionalFunction: "They need each other. Both hate it. The truce is practical, not warm — but something shifts when they actually work together.",
+    emotionalFunction: "You need each other. Both hate it. The truce is practical, not warm — but something shifts when you actually work together.",
     fixedElements: [
       "A shared goal or crisis forces genuine cooperation",
-      "He is unexpectedly good at something she respects",
-      "She is unexpectedly good at something he needed",
-      "They achieve something together. Neither says so.",
+      "He is unexpectedly good at something you respect",
+      "You are unexpectedly good at something he needed",
+      "You achieve something together. Neither says so.",
       "The chapter ends with the truce holding — but something underneath it has changed",
     ],
-    variableSlots: ["THE SHARED GOAL", "HIS COMPETENCE", "HER COMPETENCE", "THE MOMENT IT SHIFTS"],
+    variableSlots: ["THE SHARED GOAL", "HIS COMPETENCE", "YOUR COMPETENCE", "THE MOMENT IT SHIFTS"],
     hookType: "choice",
-    hookFunction: "The chapter ends on an offered gesture — not romantic, but the first genuinely human thing between them. The reader decides whether she accepts it.",
+    hookFunction: "The chapter ends on an offered gesture — not romantic, but the first genuinely human thing between you. The reader decides whether you accept it.",
     hasChoices: true,
     choiceDescriptions: {
-      a: "Accept the gesture — acknowledge the shift",
-      b: "Deflect with professionalism — protect the distance",
+      a: "You let yourself feel something — acknowledge, even silently, that this was good",
+      b: "You stay armored — whatever that was, you're not giving it a name",
     },
   },
   {
     number: 4,
     name: "First Crack",
     title: "Something Real",
-    emotionalFunction: "A crack in his armor. She sees something beneath the composure that is not the enemy she constructed. It unsettles her more than his competence ever did.",
+    emotionalFunction: "A crack in his armor. You see something beneath the composure that is not the enemy you constructed. It unsettles you more than his competence ever did.",
     fixedElements: [
-      "She encounters him outside his professional role, or in a moment he didn't control",
+      "You encounter him outside his professional role, or in a moment he didn't control",
       "He is briefly, undeniably human",
-      "She has a choice: exploit it or protect it. She chooses without quite deciding to.",
-      "He knows she saw. He does not address it.",
-      "She spends the rest of the chapter trying to un-see it",
+      "You have a choice: exploit it or protect it. You choose without quite deciding to.",
+      "He knows you saw. He does not address it.",
+      "You spend the rest of the chapter trying to un-see it",
     ],
-    variableSlots: ["THE CRACK SCENE", "WHAT SHE SEES", "HER CHOICE"],
+    variableSlots: ["THE CRACK SCENE", "WHAT YOU SEE", "YOUR CHOICE"],
     hookType: "revelation",
-    hookFunction: "She finds out something about his past that reframes what he did to her. Not exonerates — reframes. She is not ready for this information.",
+    hookFunction: "You find out something about his past that reframes what he did to you. Not exonerates — reframes. You are not ready for this information.",
     hasChoices: true,
     choiceDescriptions: {
-      a: "Confront the new information directly",
-      b: "File it away and say nothing — for now",
+      a: "You let him know you saw — offer something human back",
+      b: "You pretend you didn't see — protect him, or protect yourself",
     },
   },
   {
     number: 5,
     name: "The Almost",
     title: "Almost",
-    emotionalFunction: "The pivot of the entire adventure. The tension that has been building since ch.1 reaches a peak and breaks — but not into resolution. Into awareness. She cannot pretend anymore that this is only professional.",
+    emotionalFunction: "The pivot of the entire adventure. The tension that has been building since ch.1 reaches a peak and breaks — but not into resolution. Into awareness. You cannot pretend anymore that this is only professional.",
     fixedElements: [
       "A specific scene of forced, extended closeness — not accidental, intentional on someone's part",
-      "The space between them becomes the subject of the scene without either of them saying so",
-      "He moves closer. Or she does. Or neither does but both want to.",
+      "The space between you becomes the subject of the scene without either of you saying so",
+      "He moves closer. Or you do. Or neither does but both want to.",
       "Something specific — not an interruption, but a choice — stops it",
-      "The chapter ends without resolution. The reader feels the exact shape of what didn't happen.",
+      "The chapter ends without resolution. You feel the exact shape of what didn't happen.",
     ],
     variableSlots: ["THE ALMOST SCENE", "WHO MOVES", "THE INTERRUPTION"],
     hookType: "revelation",
-    hookFunction: "The midpoint lands without asking anything of the reader. She just feels it.",
+    hookFunction: "The midpoint lands without asking anything of the reader. You just feel it.",
     hasChoices: false,
   },
   {
     number: 6,
     name: "The Setback",
-    title: "What She Found",
-    emotionalFunction: "She finds out what he did — the full shape of it. Not a rumour. Evidence. The walls go back up. This is worse than before ch.4 because now she knows what she was starting to feel.",
+    title: "What You Found",
+    emotionalFunction: "You find out what he did — the full shape of it. Not a rumour. Evidence. The walls go back up. This is worse than before ch.4 because now you know what you were starting to feel.",
     fixedElements: [
-      "She discovers the truth of what he did without him present",
+      "You discover the truth of what he did without him present",
       "The discovery recontextualises something warm from a previous chapter — now it reads as manipulation",
-      "She does not confront him immediately. She sits with it.",
-      "The chapter ends before the confrontation — reader chooses how she responds",
+      "You do not confront him immediately. You sit with it.",
+      "The chapter ends before the confrontation — reader chooses how you respond",
     ],
-    variableSlots: ["WHAT SHE FINDS", "THE WARM THING RECONTEXTUALISED", "WHERE SHE IS WHEN SHE FINDS IT"],
+    variableSlots: ["WHAT YOU FIND", "THE WARM THING RECONTEXTUALISED", "WHERE YOU ARE WHEN YOU FIND IT"],
     hookType: "cliffhanger",
-    hookFunction: "The chapter cuts right before she has to decide what to do with what she knows.",
+    hookFunction: "The chapter cuts right before you have to decide what to do with what you know.",
     hasChoices: true,
     choiceDescriptions: {
-      a: "Escalate — take it to whoever has power to act on it",
-      b: "Go directly to him — alone, tonight, now",
+      a: "You let the anger lead — burn it down, consequences later",
+      b: "You go to him first — make him explain before anyone else knows",
     },
   },
   {
     number: 7,
     name: "The Reckoning",
     title: "Say It",
-    emotionalFunction: "The confrontation. Everything they've been not saying since ch.1 is now in the room. This is the most emotionally naked chapter. Both of them are stripped of their professional identities here.",
+    emotionalFunction: "The confrontation. Everything you've been not saying since ch.1 is now in the room. This is the most emotionally naked chapter. Both of you are stripped of your professional identities here.",
     fixedElements: [
-      "She initiates (regardless of reader choice — this is her beat)",
-      "He does not deflect. For the first time, he meets her directly.",
-      "She says the accusation plainly. He does not deny it.",
-      "Something about his response is unexpected — not what she prepared for",
-      "The chapter ends unresolved. He has given her something to think about but not an answer.",
+      "You initiate (regardless of reader choice — this is your beat)",
+      "He does not deflect. For the first time, he meets you directly.",
+      "You say the accusation plainly. He does not deny it.",
+      "Something about his response is unexpected — not what you prepared for",
+      "The chapter ends unresolved. He has given you something to think about but not an answer.",
     ],
     variableSlots: ["WHERE THE CONFRONTATION HAPPENS", "HIS UNEXPECTED RESPONSE"],
     hookType: "choice",
-    hookFunction: "He's given her something. Now she has to decide whether to hear the rest.",
+    hookFunction: "He's given you something. Now you have to decide whether to hear the rest.",
     hasChoices: true,
     choiceDescriptions: {
-      a: "Walk out — she's not ready",
-      b: "Stay — ask him to explain, knowing she might believe him",
+      a: "You leave — you need to feel this alone before you can hear more",
+      b: "You stay — you want the whole truth, even if it undoes you",
     },
   },
   {
     number: 8,
     name: "The Confession",
     title: "What He Didn't Say",
-    emotionalFunction: "The real reason. Not an excuse — a truth. What he did was real. But the reason behind it changes the shape of everything. She has to reckon with what she's been told.",
+    emotionalFunction: "The real reason. Not an excuse — a truth. What he did was real. But the reason behind it changes the shape of everything. You have to reckon with what you've been told.",
     fixedElements: [
-      "He tells her something she didn't know — a sacrifice, a cost, a protection she didn't ask for",
+      "He tells you something you didn't know — a sacrifice, a cost, a protection you didn't ask for",
       "The revelation is specific and verifiable — not just words",
-      "She does not immediately forgive him. She absorbs it.",
-      "Something shifts physically in this chapter — she lets him closer than before",
-      "The chapter ends just before the break — the reader feels the edge",
+      "You do not immediately forgive him. You absorb it.",
+      "Something shifts physically in this chapter — you let him closer than before",
+      "The chapter ends just before the break — you feel the edge",
     ],
     variableSlots: ["THE REAL REASON", "THE PROOF", "THE PHYSICAL SHIFT"],
     hookType: "revelation",
-    hookFunction: "The last image of the chapter is something that makes the reader hold their breath.",
+    hookFunction: "The last image of the chapter is something that makes you hold your breath.",
     hasChoices: true,
     choiceDescriptions: {
-      a: "Say nothing — close the distance",
-      b: "Say everything — all of it, out loud, first",
+      a: "You let your body answer — close the distance without words",
+      b: "You make him hear you first — say what you've been holding back",
     },
   },
   {
     number: 9,
     name: "The Surrender",
-    title: "She Chooses",
-    emotionalFunction: "She stops fighting it. So does he. The chapter delivers on every beat of tension built since ch.1. This is the payoff.",
+    title: "You Choose",
+    emotionalFunction: "You stop fighting it. So does he. The chapter delivers on every beat of tension built since ch.1. This is the payoff.",
     fixedElements: [
-      "She makes the first real move (the whole adventure has been building to her agency here)",
-      "He matches her — he has been waiting",
+      "You make the first real move (the whole adventure has been building to your agency here)",
+      "He matches you — he has been waiting",
       "The scene is grounded in the specific world of the Setting Sheet",
-      "What happens here is shaped entirely by the spice level the reader set at the beginning",
+      "What happens here is shaped entirely by the spice level you set at the beginning",
     ],
     variableSlots: ["THE SURRENDER SCENE", "THE FINAL CATALYST"],
     hookType: "revelation",
-    hookFunction: "The reader just experiences this.",
+    hookFunction: "You just experience this.",
     hasChoices: false,
   },
   {
     number: 10,
     name: "The Resolution",
     title: "Determined by ending",
-    emotionalFunction: "Land the story. Honour the choices she made. Leave her with something real.",
+    emotionalFunction: "Land the story. Honour the choices you made. Leave you with something real.",
     fixedElements: [
       "A closing scene that mirrors the opening of ch.1 — but different now",
       "One line that lands the whole adventure",

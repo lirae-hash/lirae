@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import type { ChoiceLogEntry, Ending } from "@/types/database";
-import { determineEnding } from "@/lib/dna/enemies-to-lovers";
+import type { ChoiceLogEntry } from "@/types/database";
 
 export async function POST(request: Request) {
   try {
@@ -13,18 +12,14 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { playthroughId, choice } = body as {
+    const { playthroughId, rewindToChapter } = body as {
       playthroughId: string;
-      choice: {
-        id: string;
-        text: string;
-        tag: "open" | "guarded";
-      };
+      rewindToChapter: number;
     };
 
-    if (!playthroughId || !choice) {
+    if (!playthroughId || !rewindToChapter) {
       return NextResponse.json(
-        { error: "Missing required fields: playthroughId, choice" },
+        { error: "Missing required fields: playthroughId, rewindToChapter" },
         { status: 400 }
       );
     }
@@ -41,35 +36,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Playthrough not found" }, { status: 404 });
     }
 
-    // Append choice to log
-    const currentChoiceLog = (playthrough.choice_log || []) as ChoiceLogEntry[];
-    const newChoiceLog: ChoiceLogEntry[] = [
-      ...currentChoiceLog,
-      {
-        id: choice.id,
-        text: choice.text,
-        tag: choice.tag,
-      },
-    ];
-
-    // Advance to next chapter
-    const nextChapter = playthrough.current_chapter + 1;
-
-    // Determine ending when reaching chapter 10
-    let ending: Ending | null = null;
-    if (nextChapter === 10) {
-      // Filter out "continue" placeholder choices from no-choice beats
-      const realChoices = newChoiceLog.filter(c => c.id !== "continue");
-      ending = determineEnding(realChoices as { tag: "open" | "guarded" }[]) as Ending;
+    // Can only rewind if we're past the target chapter
+    if (playthrough.current_chapter <= rewindToChapter) {
+      return NextResponse.json({ error: "Cannot rewind forward" }, { status: 400 });
     }
+
+    // Trim choice log to the point just before the rewind chapter
+    // (keep choices up to and including chapter rewindToChapter - 1)
+    const currentChoiceLog = (playthrough.choice_log || []) as ChoiceLogEntry[];
+    const trimmedChoiceLog = currentChoiceLog.slice(0, rewindToChapter - 1);
 
     // Update playthrough
     const { data: updated, error: updateError } = await supabase
       .from("playthroughs")
       .update({
-        choice_log: newChoiceLog,
-        current_chapter: nextChapter,
-        ending: ending || playthrough.ending, // Keep existing ending if already set
+        choice_log: trimmedChoiceLog,
+        current_chapter: rewindToChapter,
+        ending: null, // Clear the ending since we're replaying
         updated_at: new Date().toISOString(),
       })
       .eq("id", playthroughId)
@@ -77,16 +60,16 @@ export async function POST(request: Request) {
       .single();
 
     if (updateError) {
-      console.error("Error updating playthrough:", updateError);
+      console.error("Error rewinding playthrough:", updateError);
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
     return NextResponse.json({
       playthrough: updated,
-      nextChapter,
+      message: `Rewound to chapter ${rewindToChapter}`,
     });
   } catch (err) {
-    console.error("Choice submission error:", err);
+    console.error("Rewind error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

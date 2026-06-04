@@ -19,32 +19,41 @@ When generating a chapter, the AI receives:
 
 ## VOICE RULES (apply to every chapter, every adventure)
 
-**POV:** Close third person. Stay in her head. We feel everything she feels, including things she won't admit to herself.
+**POV: SECOND PERSON. The reader IS the protagonist. This is the most important rule in the document.**
 
-**Tense:** Past tense.
+Write in second person, present tense: "You feel him before you see him." Never "she." The reader is not watching a character — she *is* the character. Every chapter is addressed to "you." This is the entire point of Lirae and the thing that makes it different from a novel she could buy on Kindle: she is the one being desired, the one making the choices, the one in the room.
 
-**Her character (fixed across all adventures):**
-She is intelligent, competent, and privately tired of having to prove it. She does not shrink. She is not naive. She has been underestimated before and she will not let it happen again. She is also, underneath the armor, someone who wants things very much — she just doesn't say so.
+- Use **"you" / "your"** throughout. The love interest (Julian) is "he."
+- **Present tense** — it heightens the you-are-here immediacy. ("He looks up. His eyes find yours.") Not past tense.
+- Stay inside *your* head — the reader's. We feel what you feel: the awareness, the irritation, the pull you don't want to admit to.
+- **Never assign the reader a fixed personality or fixed inner reactions that her choices haven't earned.** Give her the *situation* and *sensory experience* richly; leave her interpretation and response open enough that her choices fill them in. Describe what you notice, not how you "should" feel about it.
+- **Use her name sparingly and only if she provided one.** If a protagonist name exists, others address her by it in dialogue ("You're late, [name]"). If no name, never invent one — others address her by role ("the new pastry chef") or simply speak to her. Never narrate "you, [name], felt…" — that breaks immersion.
+
+**Tense:** Present tense (see above).
+
+**Who "you" are (fixed across all adventures — the role, not the personality):**
+You are good at what you do — genuinely, provably good — and a little tired of having to prove it. You've been underestimated before. You don't shrink and you don't flinch easily. Beneath that, you want things you don't say out loud. That's the *frame*; the reader's choices supply the specifics. Establish the role and the want; let her fill in the rest.
 
 **His character (fixed across all adventures):**
-Julian Voss. Controlled. Composed to the point of maddening. Not cruel — precise. He chooses his words carefully and says less than he means. He has done something that hurt her, and he knows it. Whether he regrets it is the question the adventure slowly answers.
+Julian Voss. Controlled. Composed to the point of maddening. Not cruel — precise. He chooses his words carefully and says less than he means. He has done something that hurt you, and he knows it. Whether he regrets it is the question the adventure slowly answers.
 
-**Tone calibration by spice level:**
+**Tone calibration by spice level (all in second person — "you"):**
 
 | Level | Label | Prose quality |
 |---|---|---|
-| 1 | Sweet warmth | Emotional tension only. Physical awareness limited to presence and voice. No body-scanning. |
-| 2 | Warm tension | Charged glances. Awareness of proximity. She notices his hands, his jaw, his stillness. Restrained. |
-| 3 | Slow burn | Electric. She is aware of exactly how close he is at all times. Almost-touches. Charged dialogue with subtext. |
-| 4 | Simmering desire | Overt attraction she's actively resisting. Near-misses. One moment per chapter that almost breaks. |
-| 5 | Scorching | Intense physical and emotional tension. Barely-contained. Her thoughts go places she immediately shuts down. |
+| 1 | Sweet warmth | Emotional tension only. Physical awareness limited to his presence and voice. No body-scanning. |
+| 2 | Warm tension | Charged glances. Awareness of how close he is. You notice his hands, his jaw, his stillness. Restrained. |
+| 3 | Slow burn | Electric. You are aware of exactly how close he is at all times. Almost-touches. Charged dialogue with subtext. |
+| (4–5 exist in the DNA but Lirae caps the product at 3 — never write explicit content. Fade to black above level 3.) |
 
 **Prose style reference:** Write like Emily Henry or Colleen Hoover — real, adult, emotionally precise. Not YA. Not purple. Not overwrought. The restraint is what makes it hit.
 
 **What to avoid:**
-- Describing her appearance to herself in mirrors
-- "She didn't know why she felt this way" (she does know)
-- His eyes changing color
+- Slipping into "she" — you are always "you"
+- Slipping into past tense — stay present
+- Describing the reader's own appearance (she can't see herself; don't narrate her face/body for her)
+- Assigning inner feelings her choices haven't earned ("you felt your heart melt") — show the moment, let her feel it
+- "You didn't know why you felt this way" (you do)
 - Telling the reader how to feel ("it was electrifying")
 - Dialogue that exists only to explain backstory
 
@@ -56,30 +65,37 @@ Julian Voss. Controlled. Composed to the point of maddening. Not cruel — preci
 
 ### BEAT 1 — The Clash
 **Chapter title:** "The Rival"
-**Emotional function:** Establish the enemy dynamic and the attraction simultaneously. She must feel both in the same moment — the threat and the pull.
+**Emotional function:** Establish the enemy dynamic and the attraction simultaneously — you feel both in the same moment, the threat and the pull. AND orient the reader: who you are here, what you want, what's at stake. By the end of this chapter the reader must know what role she's stepped into and what she's playing for.
+
+**CRITICAL — orientation in the first 3 paragraphs (this is what makes "you" land):**
+- Para 1 establishes *where you are and why you're here* — your role, your first day / first moment in this world. Ground it in sensory detail so the reader inhabits it immediately.
+- Para 1–2 plants *what you want* — the thing you came here to do or prove or win. The reader needs a goal to feel pulled forward. Make it concrete and personal.
+- Then introduce *the history* — what he did, what it cost you — so the stake is clear before he appears.
+- Do NOT open mid-action with no grounding. The reader must feel "this is me, here, now, and I want something" before the tension starts.
 
 **Fixed elements (always present, regardless of setting):**
-- She arrives somewhere and senses him before she sees him
-- When she sees him, she recognises who he is immediately
-- The power imbalance is established — he has something over her professionally
-- She is shown to be formidable. She does not break. She does not flinch visibly.
-- He notices her noticing him. He is not surprised to see her.
-- The chapter ends before any real conversation happens — just the fact of him
+- You arrive somewhere and sense him before you see him
+- When you see him, you recognise who he is immediately — and the reader is told who he is and what he did to you
+- The power imbalance is established — he has something over you
+- You are formidable. You don't break. You don't flinch visibly. (Show this through what you do, not by narrating your personality.)
+- He notices you noticing him. He is not surprised to see you.
+- The chapter ends before any real conversation — just the fact of him, and the choice of how you meet this
 
 **Variable slots (filled by Setting Sheet):**
 - `[LOCATION]` — where this scene takes place
-- `[HIS ROLE]` — what position gives him power over her
-- `[HER ROLE]` — what she stands to lose
-- `[WHAT HE DID]` — the history she carries in (she knows; the reader learns)
-- `[THE DETAIL]` — one specific sensory detail of him that she notices and wishes she hadn't
+- `[HIS ROLE]` — what position gives him power over you
+- `[YOUR ROLE]` — who you are in this world and what you stand to lose
+- `[WHAT YOU WANT]` — the concrete goal you walked in carrying
+- `[WHAT HE DID]` — the history you carry in (you know it; the reader is shown it)
+- `[THE DETAIL]` — one specific sensory detail of him that you notice and wish you hadn't
 
 **Hook type:** Revelation
-**Hook function:** Something she learns at the end of this chapter changes the power dynamic. It's not what she expected.
+**Hook function:** Something you learn at the end of this chapter changes the power dynamic. It's not what you expected.
 
-**Choices at end of ch.1:**
-- Choice A: Bold/direct — she initiates contact on her own terms
-- Choice B: Strategic — she gathers information before moving
-- Choice C: Unexpected — she does something that reveals more about her than him
+**Choices at end of ch.1 (always phrased as actions YOU take):**
+- Choice A: Bold/direct — you make contact on your own terms
+- Choice B: Strategic — you hold back, read the room, gather yourself
+- Choice C: Unexpected — you do something that surprises even you
 
 ---
 

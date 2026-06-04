@@ -4,6 +4,92 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { AgeGate } from "@/components/AgeGate";
+import { Paywall } from "@/components/Paywall";
+
+// Ending card component with HEA/HFN/Heartbreak specific styling
+function EndingCard({ ending, playthroughId }: { ending: string | null; playthroughId: string }) {
+  const router = useRouter();
+  const [isRewinding, setIsRewinding] = useState(false);
+
+  const endingConfig = {
+    hea: {
+      title: "Happily Ever After",
+      subtitle: "You chose vulnerability. You chose him. And he chose you back.",
+      gradient: "from-wine/20 to-rose-900/20",
+      borderColor: "border-wine/50",
+    },
+    hfn: {
+      title: "Happy For Now",
+      subtitle: "The story isn't over. But right now, in this moment, you're together.",
+      gradient: "from-amber-900/20 to-wine/20",
+      borderColor: "border-amber-700/50",
+    },
+    heartbreak: {
+      title: "Heartbreak",
+      subtitle: "Some walls are built to protect. Some distances can't be closed. This is the ending you chose.",
+      gradient: "from-slate-900/30 to-near-black",
+      borderColor: "border-warm-gray",
+    },
+  };
+
+  const config = endingConfig[ending as keyof typeof endingConfig] || endingConfig.hfn;
+
+  async function handleRewind() {
+    setIsRewinding(true);
+    try {
+      const res = await fetch("/api/rewind", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playthroughId, rewindToChapter: 6 }),
+      });
+
+      if (res.ok) {
+        router.refresh();
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error("Rewind failed:", err);
+    } finally {
+      setIsRewinding(false);
+    }
+  }
+
+  return (
+    <div className={`mt-12 pt-8 border-t ${config.borderColor}`}>
+      <div className={`bg-gradient-to-b ${config.gradient} rounded-lg p-8 text-center`}>
+        <p className="text-cream-muted uppercase tracking-widest text-xs mb-2">The End</p>
+        <h2 className="font-serif text-3xl text-cream mb-3">{config.title}</h2>
+        <p className="text-cream-muted font-serif italic max-w-md mx-auto mb-8">
+          {config.subtitle}
+        </p>
+
+        {ending === "heartbreak" && (
+          <div className="mb-8 p-4 border border-warm-gray rounded-lg bg-near-black/50">
+            <p className="text-cream-muted text-sm mb-3">
+              Want to try a different path?
+            </p>
+            <button
+              onClick={handleRewind}
+              disabled={isRewinding}
+              className="px-6 py-2 border border-wine text-wine hover:bg-wine hover:text-cream disabled:opacity-50 rounded-lg transition-colors"
+            >
+              {isRewinding ? "Rewinding..." : "Rewind to Chapter 6"}
+            </button>
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Link
+            href="/library"
+            className="px-8 py-3 bg-wine hover:bg-wine-light text-cream font-medium rounded-lg transition-colors"
+          >
+            Choose another adventure
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface Choice {
   id: string;
@@ -21,6 +107,7 @@ interface Chapter {
 interface Playthrough {
   id: string;
   adventure_id: string;
+  adventure_title: string;
   vibe: string;
   spice: number;
   protagonist_name: string | null;
@@ -41,6 +128,7 @@ export default function ReaderPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedChoice, setSelectedChoice] = useState<Choice | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   const fetchPlaythrough = useCallback(async () => {
     try {
@@ -81,12 +169,13 @@ export default function ReaderPage() {
 
       if (!res.ok) {
         if (data.code === "PAYWALL") {
-          // Handle paywall - redirect or show modal
-          setError("Chapters 4-10 require purchase. Paywall coming in M5.");
+          setShowPaywall(true);
           return;
         }
         throw new Error(data.error || "Failed to load chapter");
       }
+
+      setShowPaywall(false);
 
       setChapter(data.chapter);
     } catch (err) {
@@ -145,10 +234,9 @@ export default function ReaderPage() {
     return (
       <AgeGate>
         <main className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-8 h-8 border-2 border-wine border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-cream-muted">Loading your adventure...</p>
-          </div>
+          <p className="font-serif text-xl text-cream italic animate-pulse">
+            Turning the page...
+          </p>
         </main>
       </AgeGate>
     );
@@ -211,20 +299,36 @@ export default function ReaderPage() {
           </div>
         </header>
 
-        {/* Scene Image Placeholder */}
-        {chapter?.sceneImageUrl && (
-          <div className="w-full h-64 bg-charcoal">
-            {/* Image will be added in M4 */}
+        {/* Paywall */}
+        {showPaywall && playthrough && (
+          <Paywall
+            adventureId={playthrough.adventure_id}
+            adventureTitle={playthrough.adventure_title}
+            playthroughId={playthroughId}
+            currentChapter={playthrough.current_chapter}
+          />
+        )}
+
+        {/* Scene Image */}
+        {!showPaywall && chapter?.sceneImageUrl && (
+          <div className="w-full h-64 md:h-80 bg-charcoal relative overflow-hidden">
+            <img
+              src={chapter.sceneImageUrl}
+              alt="Scene"
+              className="w-full h-full object-cover opacity-80"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-near-black" />
           </div>
         )}
 
         {/* Chapter Content */}
+        {!showPaywall && (
         <article className="max-w-2xl mx-auto px-6 py-12">
           {isLoadingChapter ? (
             <div className="text-center py-20">
-              <div className="w-8 h-8 border-2 border-wine border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-cream-muted">Generating chapter...</p>
-              <p className="text-cream-muted/50 text-sm mt-2">This may take a moment</p>
+              <p className="font-serif text-xl text-cream italic animate-pulse">
+                Setting the scene...
+              </p>
             </div>
           ) : chapter ? (
             <>
@@ -239,7 +343,7 @@ export default function ReaderPage() {
               {chapter.choices && chapter.choices.length > 0 && (
                 <div className="mt-12 pt-8 border-t border-warm-gray">
                   <p className="text-cream-muted text-center mb-6 font-serif italic">
-                    What does she do?
+                    What do you do?
                   </p>
                   <div className="space-y-3">
                     {chapter.choices.map((choice) => (
@@ -275,22 +379,14 @@ export default function ReaderPage() {
                     disabled={isSubmitting}
                     className="px-8 py-3 bg-wine hover:bg-wine-light disabled:bg-warm-gray text-cream font-medium rounded-lg transition-colors"
                   >
-                    {isSubmitting ? "Loading..." : "Continue"}
+                    {isSubmitting ? "Turning the page..." : "Continue"}
                   </button>
                 </div>
               )}
 
-              {/* End of story */}
-              {playthrough && playthrough.current_chapter >= 10 && (
-                <div className="mt-12 pt-8 border-t border-warm-gray text-center">
-                  <p className="text-cream-muted font-serif italic mb-6">The end.</p>
-                  <Link
-                    href="/library"
-                    className="inline-block px-8 py-3 bg-wine hover:bg-wine-light text-cream font-medium rounded-lg transition-colors"
-                  >
-                    Return to library
-                  </Link>
-                </div>
+              {/* End of story - after chapter 10 with no choices */}
+              {playthrough && playthrough.current_chapter === 10 && (!chapter?.choices || chapter.choices.length === 0) && (
+                <EndingCard ending={playthrough.ending} playthroughId={playthroughId} />
               )}
             </>
           ) : null}
@@ -299,6 +395,7 @@ export default function ReaderPage() {
             <p className="text-wine text-center mt-6">{error}</p>
           )}
         </article>
+        )}
       </main>
     </AgeGate>
   );

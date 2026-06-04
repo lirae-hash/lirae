@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { AgeGate } from "@/components/AgeGate";
-import type { Vibe, SpiceLevel } from "@/types/database";
+import type { Vibe, SpiceLevel, HeroArchetype } from "@/types/database";
 
 const VIBES: { id: Vibe; name: string; description: string }[] = [
   { id: "dark", name: "Dark Desire", description: "Moody, atmospheric, intimate shadows" },
@@ -17,6 +17,15 @@ const SPICE_LEVELS: { level: SpiceLevel; name: string; description: string }[] =
   { level: 1, name: "Sweet Warmth", description: "Emotional tension, presence and voice" },
   { level: 2, name: "Warm Tension", description: "Charged glances, awareness of proximity" },
   { level: 3, name: "Slow Burn", description: "Electric, almost-touches, charged subtext" },
+];
+
+const ARCHETYPES: { id: HeroArchetype; name: string; fantasy: string }[] = [
+  { id: "brooding", name: "The Brooding Rival", fantasy: "Thawing someone formidable who couldn't help falling for you" },
+  { id: "cinnamon", name: "The Cinnamon Roll", fantasy: "Being adored without games, feeling completely safe" },
+  { id: "rogue", name: "The Charming Rogue", fantasy: "Being delighted, laughing your way into love" },
+  { id: "protector", name: "The Protector", fantasy: "Being safe, being someone's whole priority" },
+  { id: "tortured", name: "The Tortured Soul", fantasy: "Being the one who earns the love no one else could" },
+  { id: "golden", name: "The Golden Boy", fantasy: "Being chosen by the one everyone wants" },
 ];
 
 // Adventure data (in production, this would come from DB)
@@ -33,6 +42,7 @@ export default function AdventureSetupPage() {
   const adventureId = params.id as string;
 
   const [vibe, setVibe] = useState<Vibe | null>(null);
+  const [archetype, setArchetype] = useState<HeroArchetype | null>(null);
   const [spice, setSpice] = useState<SpiceLevel | null>(null);
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -41,8 +51,8 @@ export default function AdventureSetupPage() {
   const adventure = ADVENTURES[adventureId];
 
   async function handleStart() {
-    if (!vibe || !spice) {
-      setError("Please select a vibe and spice level");
+    if (!vibe || !archetype || !spice) {
+      setError("Please select a vibe, archetype, and spice level");
       return;
     }
 
@@ -56,6 +66,7 @@ export default function AdventureSetupPage() {
         body: JSON.stringify({
           adventureId,
           vibe,
+          archetype,
           spice,
           protagonistName: name.trim() || null,
         }),
@@ -128,6 +139,27 @@ export default function AdventureSetupPage() {
             </div>
           </section>
 
+          {/* Archetype Selection */}
+          <section className="mb-10">
+            <h2 className="font-serif text-xl text-cream mb-4">Who do you fall for?</h2>
+            <div className="grid grid-cols-2 gap-3">
+              {ARCHETYPES.map((a) => (
+                <button
+                  key={a.id}
+                  onClick={() => setArchetype(a.id)}
+                  className={`p-4 rounded-lg border text-left transition-all ${
+                    archetype === a.id
+                      ? "border-wine bg-wine/20"
+                      : "border-warm-gray hover:border-wine/50"
+                  }`}
+                >
+                  <span className="block font-medium text-cream mb-1">{a.name}</span>
+                  <span className="text-xs text-cream-muted">{a.fantasy}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
           {/* Spice Selection */}
           <section className="mb-10">
             <h2 className="font-serif text-xl text-cream mb-4">Set your spice level</h2>
@@ -184,7 +216,7 @@ export default function AdventureSetupPage() {
           {/* Start Button */}
           <button
             onClick={handleStart}
-            disabled={isLoading || !vibe || !spice}
+            disabled={isLoading || !vibe || !archetype || !spice}
             className="w-full py-4 bg-wine hover:bg-wine-light disabled:bg-warm-gray disabled:cursor-not-allowed text-cream font-medium rounded-lg transition-colors text-lg"
           >
             {isLoading ? "Starting..." : "Begin your adventure"}

@@ -1,4 +1,4 @@
-const MODEL = "gemini-2.0-flash";
+const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
 interface GeminiResponse {
   candidates?: {
@@ -37,7 +37,7 @@ export async function generateText(prompt: string): Promise<string> {
           temperature: 0.9,
           topP: 0.95,
           topK: 40,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 8192,
         },
         safetySettings: [
           {
@@ -73,9 +73,16 @@ export async function generateText(prompt: string): Promise<string> {
   }
 
   if (!data.candidates || data.candidates.length === 0) {
-    throw new Error("No response generated from Gemini");
+    console.error("Gemini response with no candidates:", JSON.stringify(data, null, 2));
+    throw new Error("No response generated from Gemini - content may have been blocked by safety filters");
   }
 
-  const text = data.candidates[0].content.parts[0].text;
+  const candidate = data.candidates[0];
+  if (!candidate.content || !candidate.content.parts || candidate.content.parts.length === 0) {
+    console.error("Gemini response with empty content:", JSON.stringify(data, null, 2));
+    throw new Error("Gemini returned empty content - may have been blocked by safety filters");
+  }
+
+  const text = candidate.content.parts[0].text;
   return text;
 }
