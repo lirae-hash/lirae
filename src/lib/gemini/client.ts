@@ -53,7 +53,7 @@ export async function* generateTextStream(prompt: string): AsyncGenerator<string
           temperature: 0.9,
           topP: 0.95,
           topK: 40,
-          maxOutputTokens: 8192,
+          maxOutputTokens: 3000,
         },
         safetySettings: [
           {
@@ -168,7 +168,7 @@ export async function generateText(prompt: string): Promise<string> {
               temperature: 0.9,
               topP: 0.95,
               topK: 40,
-              maxOutputTokens: 8192,
+              maxOutputTokens: 3000,
             },
             // Relaxed safety settings for romance content
             // The app has its own content controls via spice levels
