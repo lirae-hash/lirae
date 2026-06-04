@@ -76,16 +76,25 @@ function SignInModal({
 
     try {
       const supabase = createClient();
+      const redirectUrl = `${window.location.origin}/auth/confirm?next=/read/${playthroughId}`;
+      console.log("Sending magic link to:", email.trim());
+      console.log("Redirect URL:", redirectUrl);
+
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/confirm?next=/read/${playthroughId}`,
+          emailRedirectTo: redirectUrl,
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase auth error:", error);
+        throw error;
+      }
+      console.log("Magic link sent successfully");
       setEmailSent(true);
     } catch (err) {
+      console.error("Sign-in error:", err);
       setError(err instanceof Error ? err.message : "Failed to send magic link");
     } finally {
       setIsLoading(false);
