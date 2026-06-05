@@ -15,6 +15,7 @@ const ADVENTURES: Record<string, typeof THE_KITCHEN> = {
 const FULL_ACCESS_EMAILS = [
   "maknight142@gmail.com",
   "csanandaji@gmail.com",
+  "anisek5@gmail.com",
 ];
 
 // Map chapter numbers to scene archetypes for image lookup
