@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# generated images (source of truth is Supabase storage, not git)
+/generated-images
+/test-kitchen-image.png

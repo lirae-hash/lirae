@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { AgeGate } from "@/components/AgeGate";
+import { getAdventureCard } from "@/lib/adventures";
 import type { Vibe, SpiceLevel, HeroArchetype } from "@/types/database";
 
 const VIBES: { id: Vibe; name: string; description: string }[] = [
@@ -28,14 +29,6 @@ const ARCHETYPES: { id: HeroArchetype; name: string; fantasy: string }[] = [
   { id: "golden", name: "The Golden Boy", fantasy: "Being chosen by the one everyone wants" },
 ];
 
-// Adventure data (in production, this would come from DB)
-const ADVENTURES: Record<string, { title: string; blurb: string }> = {
-  "the-kitchen": {
-    title: "The Kitchen",
-    blurb: "A pastry chef with a score to settle. The chef who destroyed her reputation. One Michelin-starred kitchen. Paris.",
-  },
-};
-
 export default function AdventureSetupPage() {
   const router = useRouter();
   const params = useParams();
@@ -48,7 +41,7 @@ export default function AdventureSetupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const adventure = ADVENTURES[adventureId];
+  const adventure = getAdventureCard(adventureId);
 
   async function handleStart() {
     if (!vibe || !archetype || !spice) {

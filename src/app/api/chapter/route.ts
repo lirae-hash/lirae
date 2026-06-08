@@ -2,14 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { generateText } from "@/lib/gemini/client";
 import { buildChapterPrompt, parseChapterResponse } from "@/lib/dna/prompt";
-import { THE_KITCHEN } from "@/lib/dna/settings/the-kitchen";
+import { getSetting } from "@/lib/dna/settings";
 import crypto from "crypto";
 import type { ChoiceLogEntry, Vibe, SpiceLevel, HeroArchetype } from "@/types/database";
-
-// Map adventure IDs to their setting data
-const ADVENTURES: Record<string, typeof THE_KITCHEN> = {
-  "the-kitchen": THE_KITCHEN,
-};
 
 // Emails with full access (bypass paywall)
 const FULL_ACCESS_EMAILS = [
@@ -129,7 +124,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const settingSheet = ADVENTURES[playthrough.adventure_id];
+    const settingSheet = getSetting(playthrough.adventure_id);
     if (!settingSheet) {
       return NextResponse.json(
         { error: "Adventure not found" },

@@ -1,13 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { generateTextStream } from "@/lib/gemini/client";
 import { buildChapterPrompt, parseChapterResponse } from "@/lib/dna/prompt";
-import { THE_KITCHEN } from "@/lib/dna/settings/the-kitchen";
+import { getSetting } from "@/lib/dna/settings";
 import crypto from "crypto";
 import type { ChoiceLogEntry, Vibe, SpiceLevel, HeroArchetype } from "@/types/database";
-
-const ADVENTURES: Record<string, typeof THE_KITCHEN> = {
-  "the-kitchen": THE_KITCHEN,
-};
 
 // Emails with full access (bypass paywall)
 const FULL_ACCESS_EMAILS = [
@@ -133,7 +129,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const settingSheet = ADVENTURES[playthrough.adventure_id];
+    const settingSheet = getSetting(playthrough.adventure_id);
     if (!settingSheet) {
       return new Response(
         JSON.stringify({ error: "Adventure not found" }),

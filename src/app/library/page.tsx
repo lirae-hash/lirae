@@ -5,15 +5,7 @@ import { AgeGate } from "@/components/AgeGate";
 import { Header } from "@/components/Header";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-
-const ADVENTURES = [
-  {
-    id: "the-kitchen",
-    title: "The Kitchen",
-    trope: "Enemies to Lovers",
-    blurb: "A pastry chef with a score to settle. The chef who destroyed her reputation. One Michelin-starred kitchen. Paris.",
-  },
-];
+import { ADVENTURE_CATALOG } from "@/lib/adventures";
 
 const ENDING_LABELS: Record<string, string> = {
   hea: "Happily Ever After",
@@ -207,7 +199,7 @@ export default function LibraryPage() {
               {inProgress.length > 0 || finished.length > 0 ? "Start a New Adventure" : "Available Adventures"}
             </h2>
             <div className="grid md:grid-cols-2 gap-6">
-              {ADVENTURES.map((adventure) => {
+              {ADVENTURE_CATALOG.map((adventure) => {
                 const coverUrl = `${baseUrl}/storage/v1/object/public/scene-images/${adventure.id}/arrival_dark.png`;
 
                 return (

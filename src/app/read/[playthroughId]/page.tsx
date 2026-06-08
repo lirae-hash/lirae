@@ -7,6 +7,7 @@ import { toPng } from "html-to-image";
 import { AgeGate } from "@/components/AgeGate";
 import { Paywall } from "@/components/Paywall";
 import { createClient } from "@/lib/supabase/client";
+import { getAdventureCard } from "@/lib/adventures";
 
 // Archetype display names
 const ARCHETYPE_NAMES: Record<string, string> = {
@@ -574,7 +575,7 @@ function EndingCard({
           Every reader gets a different story. Send them to find theirs.
         </p>
         <Link
-          href={`/adventure/${adventureTitle === "The Kitchen" ? "the-kitchen" : "the-kitchen"}`}
+          href={`/adventure/${adventureId}`}
           className="inline-block px-6 py-2 bg-transparent border border-cream-muted text-cream-muted hover:border-cream hover:text-cream rounded-lg transition-colors text-sm"
         >
           Send the link: lirae.app
@@ -1090,7 +1091,7 @@ export default function ReaderPage() {
                   archetype={playthrough.archetype}
                   adventureTitle={playthrough.adventure_title}
                   adventureId={playthrough.adventure_id}
-                  heroName={playthrough.adventure_id === "the-kitchen" ? "Julian" : "Him"}
+                  heroName={getAdventureCard(playthrough.adventure_id)?.heroName ?? "Him"}
                   protagonistName={playthrough.protagonist_name}
                   cardQuote={chapter?.cardQuote || null}
                   cardQuoteSpeaker={chapter?.cardQuoteSpeaker || null}
