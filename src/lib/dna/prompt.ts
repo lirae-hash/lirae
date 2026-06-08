@@ -1,5 +1,5 @@
 import type { SpiceLevel, Vibe, ChoiceLogEntry, HeroArchetype } from "@/types/database";
-import { VOICE_RULES, SPICE_RULES, VIBE_RULES, ARCHETYPE_RULES, getBeat, type Beat } from "./enemies-to-lovers";
+import { getVoiceRules, READER_GUIDELINES, SPICE_RULES, VIBE_RULES, ARCHETYPE_RULES, getBeat, type Beat } from "./enemies-to-lovers";
 
 interface SettingData {
   heroName: string;
@@ -98,7 +98,8 @@ Emotional function: ${beat.emotionalFunction}
 Fixed elements (must all appear):
 ${beat.fixedElements.map((e) => `- ${e}`).join("\n")}
 
-${VOICE_RULES}
+${getVoiceRules(settingSheet.heroName)}
+${READER_GUIDELINES}
 
 Love interest name: ${settingSheet.heroName}
 LOVE INTEREST ARCHETYPE: ${archetypeInfo.name}

@@ -20,12 +20,13 @@ export interface Beat {
 export const TROPE = "enemies-to-lovers";
 export const TROPE_LABEL = "Enemies to Lovers";
 
-export const VOICE_RULES = `
+export function getVoiceRules(heroName: string): string {
+  return `
 **POV: SECOND PERSON. The reader IS the protagonist. This is the most important rule.**
 
 Write in second person, present tense: "You feel him before you see him." Never "she." The reader is not watching a character — she *is* the character. Every chapter is addressed to "you."
 
-- Use **"you" / "your"** throughout. The love interest (Julian) is "he."
+- Use **"you" / "your"** throughout. The love interest (${heroName}) is "he."
 - **Present tense** — it heightens the you-are-here immediacy. ("He looks up. His eyes find yours.")
 - Stay inside *your* head — the reader's. We feel what you feel: the awareness, the irritation, the pull you don't want to admit to.
 - **Never assign the reader a fixed personality or fixed inner reactions that her choices haven't earned.** Give her the *situation* and *sensory experience* richly; leave her interpretation and response open enough that her choices fill them in.
@@ -34,8 +35,8 @@ Write in second person, present tense: "You feel him before you see him." Never 
 **Who "you" are (the frame, not the personality):**
 You are good at what you do — genuinely, provably good — and a little tired of having to prove it. You've been underestimated before. You don't shrink and you don't flinch easily. Beneath that, you want things you don't say out loud.
 
-**His character (fixed across all adventures):**
-Julian Voss. Controlled. Composed to the point of maddening. Not cruel — precise. He chooses his words carefully and says less than he means. He has done something that hurt you, and he knows it. Whether he regrets it is the question the adventure slowly answers.
+**His character (baseline — his specific manner is set by his archetype and this adventure's world, NOT fixed here):**
+The love interest is ${heroName}. He has done something that hurt you, and he knows it. Whether he regrets it is the question the adventure slowly answers. How he carries himself — controlled, warm, charming, dangerous — is defined by his archetype and the setting below; let those shape his voice and behavior. His name is ${heroName} and only ${heroName} — never call him by any other name.
 
 **Prose style reference:** Write like Emily Henry or Colleen Hoover — real, adult, emotionally precise. Not YA. Not purple. Not overwrought. The restraint is what makes it hit.
 
@@ -77,6 +78,28 @@ Julian Voss. Controlled. Composed to the point of maddening. Not cruel — preci
 - Dialogue that exists only to explain backstory
 - Opening with pure atmosphere/description before anything happens
 - Ending a chapter on resolution instead of an open loop
+`;
+}
+
+// Romance-reader research, distilled. Applies to EVERY chapter of EVERY adventure.
+export const READER_GUIDELINES = `
+== READER CRAVINGS & HARD AVOIDS (apply to every chapter, every adventure) ==
+
+HARD AVOIDS — these make readers quit. Never do them:
+- NO miscommunication-as-plot. Never manufacture conflict from two people simply failing to talk. Any distance between them must come from a real, understandable choice (often the reader's own choice), never a dumb misunderstanding that one honest sentence would fix.
+- NO insta-love. Attraction can be instant; trust and love are earned across the arc — that's why it's a slow burn. Never have either of them in love before the story has earned it.
+- NO passive doormat heroine — and no fake "I don't need anyone" girlboss who then needs rescuing. She has genuine agency; her choices drive the story. She has a spine and she uses it.
+- NO repetitive physical tics. Don't keep re-describing the same feature (his eye color, her biting her lip). Notice new things; let the body language evolve.
+- NO pregnancy reveals and NO time-skip-to-married-with-kids endings. Keep the ending about the two of them, now.
+- NEVER romanticize genuine abuse. In dark or morally-gray settings his hardness must ultimately resolve as protection, and she always keeps her agency and her spine. Cruelty is never the love language.
+
+READER CRAVINGS — lean into these. They are what readers love:
+- HE FALLS FIRST, AND VISIBLY. Show him increasingly wrecked by her. Yearning is the engine of the story — let the reader see how much he wants her through what he says, does, and can't quite hide.
+- BANTER IS MANDATORY. Sharp, witty dialogue with subtext in every encounter. Readers stay for the voices. What they don't say is where the heat lives.
+- THE "SNAP" MOMENTS ARE HERO BEATS. Kissing and the moment his control finally breaks are never throwaways — build to them and let them land hard. This is the heart of the steamy-not-explicit ceiling.
+- LET HER (AND THE READER) HEAR HOW MUCH HE WANTS HER. Deliver the "hearing the guy in love" feeling through his words and actions, even though POV stays on "you."
+- KEEP THE TENSION ALIVE — even during the truce. Never let the dynamic go flat or "too nice." There is always an undercurrent: longing, challenge, or an old wound.
+- PROSE QUALITY MATTERS. Show, don't tell. Sharp interior voice. No over-explaining, never tell the reader how to feel. Readers notice bad writing and quit.
 `;
 
 export const SPICE_RULES: Record<SpiceLevel, string> = {
