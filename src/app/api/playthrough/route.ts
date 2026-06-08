@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import type { Vibe, SpiceLevel, HeroArchetype } from "@/types/database";
 import crypto from "crypto";
@@ -141,6 +141,62 @@ export async function GET(request: Request) {
     return NextResponse.json({ playthroughs: data });
   } catch (err) {
     console.error("Playthrough fetch error:", err);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+// Remove a playthrough from the reader's library.
+// Ownership is verified here, then the delete runs with the service role
+// (the playthroughs table has no DELETE RLS policy).
+export async function DELETE(request: Request) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const { searchParams } = new URL(request.url);
+    const playthroughId = searchParams.get("id");
+    const anonymousToken = searchParams.get("token");
+
+    if (!playthroughId) {
+      return NextResponse.json({ error: "Missing playthrough id" }, { status: 400 });
+    }
+
+    const admin = await createServiceClient();
+
+    // Look up the playthrough to verify ownership before deleting
+    const { data: pt, error: findError } = await admin
+      .from("playthroughs")
+      .select("id, reader_id, anonymous_token")
+      .eq("id", playthroughId)
+      .single();
+
+    if (findError || !pt) {
+      return NextResponse.json({ error: "Playthrough not found" }, { status: 404 });
+    }
+
+    const ownsAsUser = user && pt.reader_id === user.id;
+    const ownsAsAnon = !pt.reader_id && anonymousToken && pt.anonymous_token === anonymousToken;
+
+    if (!ownsAsUser && !ownsAsAnon) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+    }
+
+    const { error: delError } = await admin
+      .from("playthroughs")
+      .delete()
+      .eq("id", playthroughId);
+
+    if (delError) {
+      console.error("Error deleting playthrough:", delError);
+      return NextResponse.json({ error: delError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("Playthrough delete error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
