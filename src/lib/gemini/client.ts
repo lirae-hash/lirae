@@ -53,7 +53,12 @@ export async function* generateTextStream(prompt: string): AsyncGenerator<string
           temperature: 0.9,
           topP: 0.95,
           topK: 40,
-          maxOutputTokens: 3000,
+          maxOutputTokens: 4000,
+          // gemini-2.5-flash spends "thinking" tokens out of maxOutputTokens.
+          // With thinking on, long chapters got truncated before the CHOICE_
+          // lines (short prose, missing choices). Creative writing doesn't need
+          // it — disable so the full budget goes to prose + choices.
+          thinkingConfig: { thinkingBudget: 0 },
         },
         safetySettings: [
           {

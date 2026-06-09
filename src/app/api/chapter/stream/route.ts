@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { generateTextStream } from "@/lib/gemini/client";
-import { buildChapterPrompt, parseChapterResponse } from "@/lib/dna/prompt";
+import { generateTextStream, generateText } from "@/lib/gemini/client";
+import { buildChapterPrompt, buildChoicesPrompt, parseChapterResponse } from "@/lib/dna/prompt";
 import { getSetting } from "@/lib/dna/settings";
 import crypto from "crypto";
 import type { ChoiceLogEntry, Vibe, SpiceLevel, HeroArchetype } from "@/types/database";
@@ -191,7 +191,7 @@ export async function POST(request: Request) {
     }
 
     // Generate new chapter with streaming
-    const prompt = buildChapterPrompt({
+    const promptParams = {
       chapterNo,
       settingSheet,
       vibe: playthrough.vibe as Vibe,
@@ -201,7 +201,8 @@ export async function POST(request: Request) {
       choiceLog,
       ending: chapterNo === 10 ? (playthrough.ending as "hea" | "hfn" | "heartbreak" | null) : null,
       finalWords: chapterNo === 10 ? playthrough.final_words : null,
-    });
+    };
+    const prompt = buildChapterPrompt(promptParams);
 
     let fullText = "";
     const stream = new ReadableStream({
@@ -223,7 +224,17 @@ export async function POST(request: Request) {
           }
 
           // Parse the complete response for choices
-          const { prose, choices, cardQuote, cardQuoteSpeaker } = parseChapterResponse(fullText);
+          const parsed = parseChapterResponse(fullText);
+          const { prose, cardQuote, cardQuoteSpeaker } = parsed;
+          let choices = parsed.choices;
+
+          // Recovery: choice-beats must have choices. If the model omitted them,
+          // ask once more for just the choices, grounded in the streamed prose.
+          const choicesPrompt = buildChoicesPrompt(prose, promptParams);
+          for (let attempt = 0; choicesPrompt && (!choices || choices.length === 0) && attempt < 2; attempt++) {
+            const recovered = await generateText(choicesPrompt);
+            choices = parseChapterResponse(recovered).choices;
+          }
 
           // Cache the chapter (fire and forget)
           supabase.from("chapters_cache").insert({

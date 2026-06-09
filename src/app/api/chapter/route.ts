@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { generateText } from "@/lib/gemini/client";
-import { buildChapterPrompt, parseChapterResponse } from "@/lib/dna/prompt";
+import { buildChapterPrompt, buildChoicesPrompt, parseChapterResponse } from "@/lib/dna/prompt";
 import { getSetting } from "@/lib/dna/settings";
 import crypto from "crypto";
 import type { ChoiceLogEntry, Vibe, SpiceLevel, HeroArchetype } from "@/types/database";
@@ -162,7 +162,7 @@ export async function POST(request: Request) {
     }
 
     // Generate new chapter
-    const prompt = buildChapterPrompt({
+    const promptParams = {
       chapterNo,
       settingSheet,
       vibe: playthrough.vibe as Vibe,
@@ -172,16 +172,26 @@ export async function POST(request: Request) {
       choiceLog,
       ending: chapterNo === 10 ? (playthrough.ending as "hea" | "hfn" | "heartbreak" | null) : null,
       finalWords: chapterNo === 10 ? playthrough.final_words : null,
-    });
+    };
+    const prompt = buildChapterPrompt(promptParams);
 
     console.log("=== CHAPTER GENERATION DEBUG ===");
     console.log("Chapter:", chapterNo);
 
     const response = await generateText(prompt);
-    console.log("=== RAW GEMINI RESPONSE (last 500 chars) ===");
-    console.log(response.slice(-500));
 
-    const { prose, choices, cardQuote, cardQuoteSpeaker } = parseChapterResponse(response);
+    const parsed = parseChapterResponse(response);
+    const { prose, cardQuote, cardQuoteSpeaker } = parsed;
+    let choices = parsed.choices;
+
+    // Recovery: choice-beats must have choices. The model sometimes omits them;
+    // if so, ask once more for just the choices, grounded in the prose written.
+    const choicesPrompt = buildChoicesPrompt(prose, promptParams);
+    for (let attempt = 0; choicesPrompt && (!choices || choices.length === 0) && attempt < 2; attempt++) {
+      console.log(`Choices missing — recovery attempt ${attempt + 1}`);
+      const recovered = await generateText(choicesPrompt);
+      choices = parseChapterResponse(recovered).choices;
+    }
     console.log("=== PARSED CHOICES ===");
     console.log(JSON.stringify(choices, null, 2));
     if (chapterNo === 10) {

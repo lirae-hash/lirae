@@ -14,8 +14,8 @@ import crypto from "crypto";
 import WebSocket from "ws";
 
 import { getSetting } from "../src/lib/dna/settings";
-import { buildChapterPrompt, parseChapterResponse } from "../src/lib/dna/prompt";
-import type { Vibe, SpiceLevel, HeroArchetype } from "../src/types/database";
+import { buildChapterPrompt, buildChoicesPrompt, parseChapterResponse } from "../src/lib/dna/prompt";
+import type { Vibe, SpiceLevel, HeroArchetype, ChoiceLogEntry } from "../src/types/database";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
@@ -43,7 +43,7 @@ async function generateText(prompt: string): Promise<string> {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.9, topK: 40, topP: 0.95, maxOutputTokens: 4096 },
+            generationConfig: { temperature: 0.9, topK: 40, topP: 0.95, maxOutputTokens: 4096, thinkingConfig: { thinkingBudget: 0 } },
             safetySettings: [
               { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
               { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
@@ -91,13 +91,20 @@ async function generateAndCache(adventureId: string, vibe: Vibe, spice: SpiceLev
     .single();
   if (existing) { console.log(`  [skip] ${key}`); return "skipped"; }
 
-  const prompt = buildChapterPrompt({
+  const params = {
     chapterNo: CHAPTER_NO, settingSheet, vibe, archetype, spice,
-    protagonistName: null, choiceLog: [], ending: null, finalWords: null,
-  });
-  const response = await generateText(prompt);
-  const { prose, choices } = parseChapterResponse(response);
+    protagonistName: null, choiceLog: [] as ChoiceLogEntry[], ending: null, finalWords: null,
+  };
+  const response = await generateText(buildChapterPrompt(params));
+  const { prose } = parseChapterResponse(response);
+  let choices = parseChapterResponse(response).choices;
   if (!prose) { console.error(`  [fail-parse] ${key}`); return "error"; }
+
+  // Recovery: chapter 1 is a choice-beat — ensure choices exist.
+  const choicesPrompt = buildChoicesPrompt(prose, params);
+  for (let attempt = 0; choicesPrompt && (!choices || choices.length === 0) && attempt < 2; attempt++) {
+    choices = parseChapterResponse(await generateText(buildChoicesPrompt(prose, params)!)).choices;
+  }
 
   const { error } = await supabase.from("chapters_cache").insert({
     adventure_id: adventureId, chapter_no: CHAPTER_NO, vibe, spice, archetype,
