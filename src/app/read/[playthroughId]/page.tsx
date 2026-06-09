@@ -648,6 +648,9 @@ export default function ReaderPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingChapter, setIsLoadingChapter] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Whether the current error is worth a "try again" (transient generation /
+  // network) vs a hard failure (404 not found) that retrying won't fix.
+  const [errorRetryable, setErrorRetryable] = useState(true);
   const [selectedChoice, setSelectedChoice] = useState<Choice | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
@@ -711,12 +714,15 @@ export default function ReaderPage() {
           router.push("/auth/sign-in");
           return;
         }
-        throw new Error(data.error || "Failed to load playthrough");
+        const e = new Error(data.error || "Failed to load playthrough") as Error & { fatal?: boolean };
+        e.fatal = res.status === 404;
+        throw e;
       }
 
       setPlaythrough(data.playthrough);
       return data.playthrough;
     } catch (err) {
+      setErrorRetryable(!(err as { fatal?: boolean })?.fatal);
       setError(err instanceof Error ? err.message : "Something went wrong");
       return null;
     }
@@ -773,7 +779,9 @@ export default function ReaderPage() {
           setShowPaywall(true);
           return;
         }
-        throw new Error(data.error || "Failed to load chapter");
+        const e = new Error(data.error || "Failed to load chapter") as Error & { fatal?: boolean };
+        e.fatal = res.status === 404;
+        throw e;
       }
 
       setShowPaywall(false);
@@ -783,11 +791,23 @@ export default function ReaderPage() {
       // Prefetch next chapter in background
       prefetchNextChapter(pt, pt.current_chapter + 1);
     } catch (err) {
+      setErrorRetryable(!(err as { fatal?: boolean })?.fatal);
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setIsLoadingChapter(false);
     }
   }, [playthroughId, prefetchNextChapter]);
+
+  // Reader-facing retry: reload the playthrough (if needed) and the current
+  // chapter. Used by the friendly "catching its breath" panel.
+  const retry = useCallback(async () => {
+    setError(null);
+    setErrorRetryable(true);
+    setIsLoading(true);
+    const pt = playthrough ?? await fetchPlaythrough();
+    if (pt) await fetchChapter(pt);
+    setIsLoading(false);
+  }, [playthrough, fetchPlaythrough, fetchChapter]);
 
   useEffect(() => {
     async function init() {
@@ -860,6 +880,7 @@ export default function ReaderPage() {
       setSelectedChoice(null);
       await fetchChapter(data.playthrough);
     } catch (err) {
+      setErrorRetryable(true);
       setError(err instanceof Error ? err.message : "Something went wrong");
       setSelectedChoice(null);
     } finally {
@@ -884,11 +905,31 @@ export default function ReaderPage() {
       <AgeGate>
         <main className="min-h-screen flex items-center justify-center px-4">
           <div className="text-center max-w-md">
-            <h1 className="font-serif text-2xl text-cream mb-4">Something went wrong</h1>
-            <p className="text-cream-muted mb-6">{error}</p>
-            <Link href="/library" className="text-wine hover:underline">
-              Back to library
-            </Link>
+            {errorRetryable ? (
+              <>
+                <h1 className="font-serif text-2xl text-cream mb-3">The story is catching its breath</h1>
+                <p className="text-cream-muted mb-6">That page didn&apos;t come through — give it a moment, then try again.</p>
+                <button
+                  onClick={retry}
+                  className="px-8 py-3 bg-wine hover:bg-wine-light text-cream font-medium rounded-lg transition-colors"
+                >
+                  Try again
+                </button>
+                <div className="mt-6">
+                  <Link href="/library" className="text-cream-muted hover:text-wine text-sm transition-colors">
+                    Back to library
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <>
+                <h1 className="font-serif text-2xl text-cream mb-4">Story not found</h1>
+                <p className="text-cream-muted mb-6">We couldn&apos;t find this story. It may have been removed.</p>
+                <Link href="/library" className="text-wine hover:underline">
+                  Back to library
+                </Link>
+              </>
+            )}
           </div>
         </main>
       </AgeGate>
@@ -1069,6 +1110,7 @@ export default function ReaderPage() {
                           setChapter(null);
                           await fetchChapter(data.playthrough);
                         } catch (err) {
+                          setErrorRetryable(true);
                           setError(err instanceof Error ? err.message : "Something went wrong");
                         } finally {
                           setIsSubmitting(false);
@@ -1102,7 +1144,21 @@ export default function ReaderPage() {
           ) : null}
 
           {error && chapter && (
-            <p className="text-wine text-center mt-6">{error}</p>
+            <div className="text-center mt-8">
+              <p className="text-cream-muted mb-3">The story is catching its breath.</p>
+              {errorRetryable ? (
+                <button
+                  onClick={retry}
+                  className="px-6 py-2 bg-wine hover:bg-wine-light text-cream font-medium rounded-lg transition-colors"
+                >
+                  Tap to try again
+                </button>
+              ) : (
+                <Link href="/library" className="text-cream-muted hover:text-wine text-sm transition-colors">
+                  Back to library
+                </Link>
+              )}
+            </div>
           )}
         </article>
         )}

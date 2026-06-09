@@ -1,7 +1,9 @@
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
-// Retry configuration
-const MAX_RETRIES = 3;
+// Retry configuration — 4 attempts with exponential backoff (~1s, 2s, 4s, 8s)
+// to ride out transient Gemini 503 "high demand" spikes. Used by generateText
+// (the reader's non-streaming chapter path).
+const MAX_RETRIES = 4;
 const INITIAL_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 10000;
 
