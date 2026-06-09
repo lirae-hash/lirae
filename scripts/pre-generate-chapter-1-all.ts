@@ -14,7 +14,7 @@ import crypto from "crypto";
 import WebSocket from "ws";
 
 import { getSetting } from "../src/lib/dna/settings";
-import { buildChapterPrompt, buildChoicesPrompt, parseChapterResponse } from "../src/lib/dna/prompt";
+import { buildChapterPrompt, buildChoicesPrompt, parseChapterResponse, looksTruncated } from "../src/lib/dna/prompt";
 import type { Vibe, SpiceLevel, HeroArchetype, ChoiceLogEntry } from "../src/types/database";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -95,9 +95,13 @@ async function generateAndCache(adventureId: string, vibe: Vibe, spice: SpiceLev
     chapterNo: CHAPTER_NO, settingSheet, vibe, archetype, spice,
     protagonistName: null, choiceLog: [] as ChoiceLogEntry[], ending: null, finalWords: null,
   };
-  const response = await generateText(buildChapterPrompt(params));
-  const { prose } = parseChapterResponse(response);
-  let choices = parseChapterResponse(response).choices;
+  let prose = "";
+  let choices = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const parsed = parseChapterResponse(await generateText(buildChapterPrompt(params)));
+    prose = parsed.prose; choices = parsed.choices;
+    if (prose && !looksTruncated(prose)) break;
+  }
   if (!prose) { console.error(`  [fail-parse] ${key}`); return "error"; }
 
   // Recovery: chapter 1 is a choice-beat — ensure choices exist.

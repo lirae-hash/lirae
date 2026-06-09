@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { generateText } from "@/lib/gemini/client";
-import { buildChapterPrompt, buildChoicesPrompt, parseChapterResponse } from "@/lib/dna/prompt";
+import { buildChapterPrompt, buildChoicesPrompt, parseChapterResponse, looksTruncated } from "@/lib/dna/prompt";
 import { getSetting } from "@/lib/dna/settings";
 import crypto from "crypto";
 import type { ChoiceLogEntry, Vibe, SpiceLevel, HeroArchetype } from "@/types/database";
@@ -173,19 +173,26 @@ export async function POST(request: Request) {
       ending: chapterNo === 10 ? (playthrough.ending as "hea" | "hfn" | "heartbreak" | null) : null,
       finalWords: chapterNo === 10 ? playthrough.final_words : null,
     };
-    const prompt = buildChapterPrompt(promptParams);
-
     console.log("=== CHAPTER GENERATION DEBUG ===");
     console.log("Chapter:", chapterNo);
 
-    const response = await generateText(prompt);
+    // Generate the prose; regenerate if the model truncated it mid-sentence.
+    let prose = "";
+    let cardQuote: string | null = null;
+    let cardQuoteSpeaker: string | null = null;
+    let choices: ReturnType<typeof parseChapterResponse>["choices"] = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const parsed = parseChapterResponse(await generateText(buildChapterPrompt(promptParams)));
+      prose = parsed.prose;
+      cardQuote = parsed.cardQuote;
+      cardQuoteSpeaker = parsed.cardQuoteSpeaker;
+      choices = parsed.choices;
+      if (!looksTruncated(prose)) break;
+      console.log(`Prose looks truncated (attempt ${attempt + 1}/3), regenerating`);
+    }
 
-    const parsed = parseChapterResponse(response);
-    const { prose, cardQuote, cardQuoteSpeaker } = parsed;
-    let choices = parsed.choices;
-
-    // Recovery: choice-beats must have choices. The model sometimes omits them;
-    // if so, ask once more for just the choices, grounded in the prose written.
+    // Chapter prose is generated without choices; choices come from this
+    // focused call (reliable CHOICE_ format, no choice-text leaking into prose).
     const choicesPrompt = buildChoicesPrompt(prose, promptParams);
     // Chapter prose is generated without choices; choices come from this
     // focused call (reliable CHOICE_ format, no choice-text leaking into prose).

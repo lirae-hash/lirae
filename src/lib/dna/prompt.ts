@@ -214,6 +214,15 @@ No headings, no preamble, no meta-commentary. Just the chapter prose${chapterNo 
   return prompt;
 }
 
+// The model occasionally stops mid-sentence (a truncated generation). A clean
+// chapter always ends on sentence-ending punctuation (or a closing quote / em
+// dash / italic marker). If it doesn't, treat it as truncated and regenerate.
+export function looksTruncated(prose: string): boolean {
+  const t = prose.trim();
+  if (t.length < 200) return true; // implausibly short = truncated
+  return !/[.!?…—"”'’*)\]]$/.test(t);
+}
+
 // Recovery prompt: when a choice-beat generation comes back WITHOUT choices,
 // ask for just the choices, grounded in the prose that was actually written.
 export function buildChoicesPrompt(prose: string, params: PromptParams): string | null {
