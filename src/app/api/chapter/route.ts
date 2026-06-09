@@ -187,8 +187,9 @@ export async function POST(request: Request) {
     // Recovery: choice-beats must have choices. The model sometimes omits them;
     // if so, ask once more for just the choices, grounded in the prose written.
     const choicesPrompt = buildChoicesPrompt(prose, promptParams);
-    for (let attempt = 0; choicesPrompt && (!choices || choices.length === 0) && attempt < 2; attempt++) {
-      console.log(`Choices missing — recovery attempt ${attempt + 1}`);
+    // Chapter prose is generated without choices; choices come from this
+    // focused call (reliable CHOICE_ format, no choice-text leaking into prose).
+    for (let attempt = 0; choicesPrompt && (!choices || choices.length === 0) && attempt < 3; attempt++) {
       const recovered = await generateText(choicesPrompt);
       choices = parseChapterResponse(recovered).choices;
     }

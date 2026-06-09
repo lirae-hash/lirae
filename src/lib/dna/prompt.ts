@@ -193,7 +193,11 @@ Write the chapter prose in SECOND PERSON, PRESENT TENSE. The reader IS the prota
 
 Your job is to fulfill the emotional beat above — when the beat is complete, the chapter is done. But always end on a hook, never a resolution.
 
-${renderChoiceInstructions(beat)}
+${beat.hasChoices
+    ? `End the chapter on the open-loop hook above — a charged, unresolved moment that puts the next move in her hands.
+
+IMPORTANT: Output ONLY the chapter prose. Do NOT write any reader choices, numbered or bulleted options, "You could…" lines, or a "What do you do?" prompt. The choices are generated separately — end on the hook and stop.`
+    : "This chapter has no choices — end on the emotional beat itself."}
 ${chapterNo === 10 ? `
 == SHAREABLE CARD QUOTE ==
 After the prose, on a new line, provide a single memorable quote from this chapter for the reader's shareable ending card.
@@ -205,9 +209,7 @@ CARD_QUOTE_SPEAKER: [speaker name - either "${settingSheet.heroName}" if he said
 
 Choose a line that will make the reader want to share it. His declarations of love are usually most shareable.` : ""}
 
-No headings, no preamble, no meta-commentary. Just the prose${beat.hasChoices ? ", then the choices on separate lines" : ""}${chapterNo === 10 ? ", then the card quote" : ""}.${beat.hasChoices ? `
-
-CRITICAL: Your response is INCOMPLETE without the choices. After the prose, you MUST end with the ${beat.choiceDescriptions?.c ? "3" : "2"} CHOICE_ lines exactly as specified. Do not stop writing until they are there.` : ""}`;
+No headings, no preamble, no meta-commentary. Just the chapter prose${chapterNo === 10 ? ", then the card quote" : ""}.`;
 
   return prompt;
 }
