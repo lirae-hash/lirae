@@ -1,10 +1,17 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { generateText } from "@/lib/gemini/client";
-import { buildChapterPrompt, buildChoicesPrompt, parseChapterResponse, looksTruncated } from "@/lib/dna/prompt";
+import { buildChapterPrompt, buildChoicesPrompt, parseChapterResponse, looksTruncated, fallbackChoices } from "@/lib/dna/prompt";
 import { getSetting } from "@/lib/dna/settings";
 import crypto from "crypto";
 import type { ChoiceLogEntry, Vibe, SpiceLevel, HeroArchetype } from "@/types/database";
+
+// Chapter generation makes up to two Gemini calls (prose + choices) with
+// 503-retry backoff; the default ~10s function limit cut those retries off
+// mid-flight (504), turning recoverable overload into hard failures. Give it
+// real headroom.
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
 // Emails with full access (bypass paywall)
 const FULL_ACCESS_EMAILS = [
@@ -182,23 +189,40 @@ export async function POST(request: Request) {
     let cardQuoteSpeaker: string | null = null;
     let choices: ReturnType<typeof parseChapterResponse>["choices"] = null;
     for (let attempt = 0; attempt < 3; attempt++) {
-      const parsed = parseChapterResponse(await generateText(buildChapterPrompt(promptParams)));
-      prose = parsed.prose;
-      cardQuote = parsed.cardQuote;
-      cardQuoteSpeaker = parsed.cardQuoteSpeaker;
-      choices = parsed.choices;
-      if (!looksTruncated(prose)) break;
-      console.log(`Prose looks truncated (attempt ${attempt + 1}/3), regenerating`);
+      try {
+        const parsed = parseChapterResponse(await generateText(buildChapterPrompt(promptParams)));
+        prose = parsed.prose;
+        cardQuote = parsed.cardQuote;
+        cardQuoteSpeaker = parsed.cardQuoteSpeaker;
+        choices = parsed.choices;
+        if (prose && !looksTruncated(prose)) break;
+        console.log(`Prose truncated (attempt ${attempt + 1}/3), regenerating`);
+      } catch (err) {
+        console.error(`Prose generation attempt ${attempt + 1}/3 failed:`, err);
+        if (attempt === 2) throw err; // exhausted → handler returns error; reader sees the friendly retry panel
+      }
+    }
+    if (!prose || looksTruncated(prose)) {
+      throw new Error("Chapter generation is temporarily unavailable");
     }
 
-    // Chapter prose is generated without choices; choices come from this
-    // focused call (reliable CHOICE_ format, no choice-text leaking into prose).
+    // Choices come from a separate focused call. If it fails (e.g. a 503 burst),
+    // fall back to generic on-stance choices instead of failing the whole
+    // chapter — the prose is the expensive part and it already succeeded.
     const choicesPrompt = buildChoicesPrompt(prose, promptParams);
-    // Chapter prose is generated without choices; choices come from this
-    // focused call (reliable CHOICE_ format, no choice-text leaking into prose).
-    for (let attempt = 0; choicesPrompt && (!choices || choices.length === 0) && attempt < 3; attempt++) {
-      const recovered = await generateText(choicesPrompt);
-      choices = parseChapterResponse(recovered).choices;
+    if (choicesPrompt) {
+      for (let attempt = 0; (!choices || choices.length === 0) && attempt < 2; attempt++) {
+        try {
+          choices = parseChapterResponse(await generateText(choicesPrompt)).choices;
+        } catch (err) {
+          console.error("Choices generation failed:", err);
+          break;
+        }
+      }
+      if (!choices || choices.length === 0) {
+        console.log("Choices call failed — using fallback choices");
+        choices = fallbackChoices(chapterNo);
+      }
     }
     console.log("=== PARSED CHOICES ===");
     console.log(JSON.stringify(choices, null, 2));

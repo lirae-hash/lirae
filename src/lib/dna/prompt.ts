@@ -223,6 +223,21 @@ export function looksTruncated(prose: string): boolean {
   return !/[.!?…—"”'’*)\]]$/.test(t);
 }
 
+// Deterministic fallback choices from the beat's stance descriptions. Used when
+// the (separate) choices generation call fails — so a failed choices call never
+// kills the whole chapter. Not scene-specific, but valid and on-stance.
+export function fallbackChoices(chapterNo: number): { id: string; text: string; tag: "open" | "guarded" }[] | null {
+  const beat = getBeat(chapterNo);
+  if (!beat || !beat.hasChoices || !beat.choiceDescriptions) return null;
+  const c = beat.choiceDescriptions;
+  const out: { id: string; text: string; tag: "open" | "guarded" }[] = [
+    { id: "1", text: c.a, tag: "open" },
+    { id: "2", text: c.b, tag: "guarded" },
+  ];
+  if (c.c) out.push({ id: "3", text: c.c, tag: "open" });
+  return out;
+}
+
 // Recovery prompt: when a choice-beat generation comes back WITHOUT choices,
 // ask for just the choices, grounded in the prose that was actually written.
 export function buildChoicesPrompt(prose: string, params: PromptParams): string | null {
