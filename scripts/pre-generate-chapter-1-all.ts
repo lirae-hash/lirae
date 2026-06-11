@@ -95,6 +95,9 @@ async function generateAndCache(adventureId: string, vibe: Vibe, spice: SpiceLev
     chapterNo: CHAPTER_NO, settingSheet, vibe, archetype, spice,
     protagonistName: null, choiceLog: [] as ChoiceLogEntry[], ending: null, finalWords: null,
   };
+  // QUALITY GATE: only cache a chapter that is FULL (not short/truncated) AND
+  // has real scene-specific choices. Anything else is skipped (re-runnable),
+  // never cached, so the cache only ever holds good chapters.
   let prose = "";
   let choices = null;
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -102,13 +105,13 @@ async function generateAndCache(adventureId: string, vibe: Vibe, spice: SpiceLev
     prose = parsed.prose; choices = parsed.choices;
     if (prose && !looksTruncated(prose)) break;
   }
-  if (!prose) { console.error(`  [fail-parse] ${key}`); return "error"; }
+  if (!prose || looksTruncated(prose)) { console.error(`  [skip:prose] ${key} (short/truncated)`); return "error"; }
 
-  // Recovery: chapter 1 is a choice-beat — ensure choices exist.
   const choicesPrompt = buildChoicesPrompt(prose, params);
-  for (let attempt = 0; choicesPrompt && (!choices || choices.length === 0) && attempt < 2; attempt++) {
-    choices = parseChapterResponse(await generateText(buildChoicesPrompt(prose, params)!)).choices;
+  for (let attempt = 0; choicesPrompt && (!choices || choices.length === 0) && attempt < 3; attempt++) {
+    choices = parseChapterResponse(await generateText(choicesPrompt!)).choices;
   }
+  if (choicesPrompt && (!choices || choices.length === 0)) { console.error(`  [skip:choices] ${key}`); return "error"; }
 
   const { error } = await supabase.from("chapters_cache").insert({
     adventure_id: adventureId, chapter_no: CHAPTER_NO, vibe, spice, archetype,

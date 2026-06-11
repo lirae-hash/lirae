@@ -1,11 +1,16 @@
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
-// Retry configuration — 4 attempts with exponential backoff (~1s, 2s, 4s, 8s)
-// to ride out transient Gemini 503 "high demand" spikes. Used by generateText
-// (the reader's non-streaming chapter path).
-const MAX_RETRIES = 4;
-const INITIAL_BACKOFF_MS = 1000;
-const MAX_BACKOFF_MS = 10000;
+// Primary + fallback models. `gemini-2.5-flash` and `gemini-2.5-flash-lite` are
+// separate capacity pools, so when the primary is overloaded (503) we switch to
+// the fallback IMMEDIATELY instead of grinding long backoff on a congested pool.
+const PRIMARY_MODEL = MODEL;
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-2.5-flash-lite";
+
+// Default wall-clock budget for a single generateText call when the caller
+// doesn't pass a deadline. The chapter routes pass their own shared deadline so
+// the whole request finishes before the 60s function limit (no raw 504).
+const DEFAULT_BUDGET_MS = 50_000;
+const MAX_BACKOFF_MS = 4000;
 
 interface GeminiResponse {
   candidates?: {
@@ -146,117 +151,81 @@ export async function* generateTextStream(prompt: string): AsyncGenerator<string
   }
 }
 
-export async function generateText(prompt: string): Promise<string> {
+const SAFETY_SETTINGS = [
+  { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+  { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+  { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+  { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
+];
+
+function generationConfig(model: string) {
+  const cfg: Record<string, unknown> = { temperature: 0.9, topP: 0.95, topK: 40, maxOutputTokens: 4000 };
+  // gemini-2.5-* spends "thinking" tokens out of maxOutputTokens — disable it so
+  // the whole budget goes to prose + choices (and generation is faster).
+  if (model.includes("2.5")) cfg.thinkingConfig = { thinkingBudget: 0 };
+  return cfg;
+}
+
+type CallResult = { ok: true; text: string } | { ok: false; fatal: boolean; info: string };
+
+async function callModelOnce(model: string, prompt: string, apiKey: string): Promise<CallResult> {
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: "POST",
+        headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: generationConfig(model),
+          safetySettings: SAFETY_SETTINGS,
+        }),
+      }
+    );
+  } catch {
+    return { ok: false, fatal: false, info: "network-error" };
+  }
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    return { ok: false, fatal: !isRetryableError(response.status), info: `${response.status} ${body.slice(0, 100)}` };
+  }
+  const data: GeminiResponse = await response.json().catch(() => ({} as GeminiResponse));
+  if (data.error) return { ok: false, fatal: !isRetryableError(data.error.code), info: data.error.message };
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) return { ok: false, fatal: false, info: "empty-content" };
+  return { ok: true, text };
+}
+
+/**
+ * Generate text with primary→fallback model rotation and a wall-clock deadline.
+ * On a retryable failure (503 overload / empty / network) we IMMEDIATELY try the
+ * other model instead of backing off on a congested pool. We only pause (short
+ * backoff) after both models fail a round, and we never run past `deadline` —
+ * so the chapter route stays under the 60s function limit (no raw 504).
+ */
+export async function generateText(prompt: string, opts?: { deadline?: number }): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
 
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured");
-  }
+  const deadline = opts?.deadline ?? Date.now() + DEFAULT_BUDGET_MS;
+  const models = [PRIMARY_MODEL, FALLBACK_MODEL];
+  let lastInfo = "unknown";
+  let round = 0;
 
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
-        {
-          method: "POST",
-          headers: {
-            "x-goog-api-key": apiKey,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [{ text: prompt }],
-              },
-            ],
-            generationConfig: {
-              temperature: 0.9,
-              topP: 0.95,
-              topK: 40,
-              maxOutputTokens: 3000,
-            },
-            // Relaxed safety settings for romance content
-            // The app has its own content controls via spice levels
-            safetySettings: [
-              {
-                category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                threshold: "BLOCK_ONLY_HIGH",
-              },
-              {
-                category: "HARM_CATEGORY_HATE_SPEECH",
-                threshold: "BLOCK_ONLY_HIGH",
-              },
-              {
-                category: "HARM_CATEGORY_HARASSMENT",
-                threshold: "BLOCK_ONLY_HIGH",
-              },
-              {
-                category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-                threshold: "BLOCK_ONLY_HIGH",
-              },
-            ],
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-
-        // Retry on retryable errors
-        if (isRetryableError(response.status) && attempt < MAX_RETRIES - 1) {
-          const backoffMs = Math.min(INITIAL_BACKOFF_MS * Math.pow(2, attempt), MAX_BACKOFF_MS);
-          console.log(`Gemini API returned ${response.status}, retrying in ${backoffMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
-          await sleep(backoffMs);
-          continue;
-        }
-
-        throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
-      }
-
-      // Success - process response
-      const data: GeminiResponse = await response.json();
-
-      if (data.error) {
-        throw new Error(`Gemini error: ${data.error.message}`);
-      }
-
-      if (!data.candidates || data.candidates.length === 0) {
-        console.error("Gemini response with no candidates:", JSON.stringify(data, null, 2));
-        throw new Error("No response generated from Gemini - content may have been blocked by safety filters");
-      }
-
-      const candidate = data.candidates[0];
-      if (!candidate.content || !candidate.content.parts || candidate.content.parts.length === 0) {
-        console.error("Gemini response with empty content:", JSON.stringify(data, null, 2));
-
-        // Retry on empty content (can be transient safety filter issues)
-        if (attempt < MAX_RETRIES - 1) {
-          const backoffMs = Math.min(INITIAL_BACKOFF_MS * Math.pow(2, attempt), MAX_BACKOFF_MS);
-          console.log(`Empty content response, retrying in ${backoffMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
-          await sleep(backoffMs);
-          continue;
-        }
-
-        throw new Error("Gemini returned empty content - may have been blocked by safety filters");
-      }
-
-      return candidate.content.parts[0].text;
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-
-      // Network errors are retryable
-      if (err instanceof TypeError && err.message.includes("fetch") && attempt < MAX_RETRIES - 1) {
-        const backoffMs = Math.min(INITIAL_BACKOFF_MS * Math.pow(2, attempt), MAX_BACKOFF_MS);
-        console.log(`Network error, retrying in ${backoffMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
-        await sleep(backoffMs);
-        continue;
-      }
-
-      throw lastError;
+  while (Date.now() < deadline) {
+    for (const model of models) {
+      if (Date.now() >= deadline) break;
+      const res = await callModelOnce(model, prompt, apiKey);
+      if (res.ok) return res.text;
+      lastInfo = `${model}: ${res.info}`;
+      if (res.fatal) throw new Error(`Gemini error (${lastInfo})`);
+      // retryable → drop straight to the next model, no backoff
     }
+    round++;
+    const wait = Math.min(500 * 2 ** (round - 1), MAX_BACKOFF_MS);
+    if (Date.now() + wait >= deadline) break;
+    await sleep(wait);
   }
-
-  throw lastError || new Error("Max retries exceeded");
+  throw new Error(`Gemini unavailable within budget (last: ${lastInfo})`);
 }

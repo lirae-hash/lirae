@@ -728,28 +728,38 @@ export default function ReaderPage() {
     }
   }, [playthroughId, router]);
 
-  // Prefetch next chapter in background
-  const prefetchNextChapter = useCallback(async (pt: Playthrough, nextChapterNo: number) => {
+  // Prefetch the NEXT chapter's branches in the background. The next chapter
+  // depends on which choice the reader picks, so we warm chapter N+1 for EVERY
+  // branch (each choice, or the single "continue" for no-choice beats). Whichever
+  // she picks is then an instant cache hit. Skips the finale (ch10 depends on
+  // free-text final words and shouldn't be pre-generated).
+  const prefetchBranches = useCallback(async (pt: Playthrough, ch: Chapter) => {
+    const nextChapterNo = ch.number + 1;
+    if (nextChapterNo >= 10) return;
     if (prefetchedRef.current.has(nextChapterNo)) return;
-    if (nextChapterNo > 10) return;
-
     prefetchedRef.current.set(nextChapterNo, true);
 
     const token = localStorage.getItem(`lirae_anon_${playthroughId}`);
-    try {
-      // Use non-streaming endpoint for prefetch (just to warm the cache)
-      await fetch("/api/chapter", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          playthroughId: pt.id,
-          chapterNo: nextChapterNo,
-          anonymousToken: token,
-        }),
-      });
-    } catch {
-      // Silently fail prefetch
-    }
+    const baseLog = (pt.choice_log || []) as { id: string; text: string; tag: string }[];
+    const branches = (ch.choices && ch.choices.length > 0)
+      ? ch.choices.map((c) => ({ id: c.id, text: c.text, tag: c.tag }))
+      : [{ id: "continue", text: "Continue", tag: "open" as const }];
+
+    await Promise.all(
+      branches.map((choice) =>
+        fetch("/api/chapter", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            playthroughId: pt.id,
+            chapterNo: nextChapterNo,
+            anonymousToken: token,
+            prefetch: true,
+            branchChoiceLog: [...baseLog, choice],
+          }),
+        }).catch(() => {}) // best-effort
+      )
+    );
   }, [playthroughId]);
 
   const fetchChapter = useCallback(async (pt: Playthrough) => {
@@ -788,15 +798,15 @@ export default function ReaderPage() {
       setShowSignIn(false);
       setChapter(data.chapter);
 
-      // Prefetch next chapter in background
-      prefetchNextChapter(pt, pt.current_chapter + 1);
+      // Warm the next chapter's branches in the background
+      prefetchBranches(pt, data.chapter);
     } catch (err) {
       setErrorRetryable(!(err as { fatal?: boolean })?.fatal);
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setIsLoadingChapter(false);
     }
-  }, [playthroughId, prefetchNextChapter]);
+  }, [playthroughId, prefetchBranches]);
 
   // Reader-facing retry: reload the playthrough (if needed) and the current
   // chapter. Used by the friendly "catching its breath" panel.

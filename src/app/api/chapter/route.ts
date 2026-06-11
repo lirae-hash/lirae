@@ -43,8 +43,11 @@ function getSceneImageUrl(adventureId: string, chapterNo: number, vibe: string):
 }
 
 function hashChoiceLog(choiceLog: ChoiceLogEntry[]): string {
-  const str = JSON.stringify(choiceLog);
-  return crypto.createHash("sha256").update(str).digest("hex").slice(0, 16);
+  // Normalize each entry to a FIXED key order before hashing. choice_log is
+  // stored as JSONB (which doesn't preserve key order), so a freshly-built
+  // prefetch branch and the DB-round-tripped log must hash identically.
+  const normalized = (choiceLog || []).map((c) => ({ id: c.id, text: c.text, tag: c.tag }));
+  return crypto.createHash("sha256").update(JSON.stringify(normalized)).digest("hex").slice(0, 16);
 }
 
 export async function POST(request: Request) {
@@ -53,10 +56,14 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser();
 
     const body = await request.json();
-    const { playthroughId, chapterNo, anonymousToken } = body as {
+    const { playthroughId, chapterNo, anonymousToken, prefetch, branchChoiceLog } = body as {
       playthroughId: string;
       chapterNo: number;
       anonymousToken?: string;
+      // Prefetch mode: warm a SPECULATIVE branch (a hypothetical full choice_log
+      // for the next chapter) without mutating the playthrough. Quality-gated.
+      prefetch?: boolean;
+      branchChoiceLog?: ChoiceLogEntry[];
     };
 
     if (!playthroughId || !chapterNo) {
@@ -139,7 +146,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const choiceLog = (playthrough.choice_log || []) as ChoiceLogEntry[];
+    // In prefetch mode, generate the speculative branch's choice_log instead of
+    // the playthrough's stored one (the playthrough is never mutated here).
+    const choiceLog = (prefetch && Array.isArray(branchChoiceLog))
+      ? branchChoiceLog
+      : ((playthrough.choice_log || []) as ChoiceLogEntry[]);
     const pathHash = hashChoiceLog(choiceLog);
 
     // Check cache first (keyed by adventure, chapter, vibe, spice, archetype, and path)
@@ -155,6 +166,7 @@ export async function POST(request: Request) {
       .single();
 
     if (cached) {
+      if (prefetch) return NextResponse.json({ prefetched: true, alreadyCached: true });
       return NextResponse.json({
         chapter: {
           number: chapterNo,
@@ -180,47 +192,55 @@ export async function POST(request: Request) {
       ending: chapterNo === 10 ? (playthrough.ending as "hea" | "hfn" | "heartbreak" | null) : null,
       finalWords: chapterNo === 10 ? playthrough.final_words : null,
     };
-    console.log("=== CHAPTER GENERATION DEBUG ===");
-    console.log("Chapter:", chapterNo);
+    console.log(`=== CHAPTER ${chapterNo} ${prefetch ? "PREFETCH" : "GEN"} ===`);
 
-    // Generate the prose; regenerate if the model truncated it mid-sentence.
+    // Shared wall-clock budget: prose + choices must finish within this so the
+    // request returns before the 60s function limit (a clean 500 -> friendly
+    // retry, never a raw 504). ~8s of margin.
+    const deadline = Date.now() + 52_000;
+
+    // Generate the prose; regenerate on truncation/short prose; retry on a
+    // failed call — all within the shared deadline.
     let prose = "";
     let cardQuote: string | null = null;
     let cardQuoteSpeaker: string | null = null;
     let choices: ReturnType<typeof parseChapterResponse>["choices"] = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 3 && Date.now() < deadline; attempt++) {
       try {
-        const parsed = parseChapterResponse(await generateText(buildChapterPrompt(promptParams)));
+        const parsed = parseChapterResponse(await generateText(buildChapterPrompt(promptParams), { deadline }));
         prose = parsed.prose;
         cardQuote = parsed.cardQuote;
         cardQuoteSpeaker = parsed.cardQuoteSpeaker;
         choices = parsed.choices;
         if (prose && !looksTruncated(prose)) break;
-        console.log(`Prose truncated (attempt ${attempt + 1}/3), regenerating`);
+        console.log(`Prose truncated/short (attempt ${attempt + 1}/3), regenerating`);
       } catch (err) {
         console.error(`Prose generation attempt ${attempt + 1}/3 failed:`, err);
-        if (attempt === 2) throw err; // exhausted → handler returns error; reader sees the friendly retry panel
       }
     }
     if (!prose || looksTruncated(prose)) {
+      // QUALITY GATE: never cache/serve a short or truncated chapter.
+      if (prefetch) return NextResponse.json({ prefetched: false, reason: "prose-quality" });
       throw new Error("Chapter generation is temporarily unavailable");
     }
 
-    // Choices come from a separate focused call. If it fails (e.g. a 503 burst),
-    // fall back to generic on-stance choices instead of failing the whole
-    // chapter — the prose is the expensive part and it already succeeded.
+    // Choices come from a separate focused call, within the same deadline.
     const choicesPrompt = buildChoicesPrompt(prose, promptParams);
     if (choicesPrompt) {
-      for (let attempt = 0; (!choices || choices.length === 0) && attempt < 2; attempt++) {
+      for (let attempt = 0; (!choices || choices.length === 0) && attempt < 2 && Date.now() < deadline; attempt++) {
         try {
-          choices = parseChapterResponse(await generateText(choicesPrompt)).choices;
+          choices = parseChapterResponse(await generateText(choicesPrompt, { deadline })).choices;
         } catch (err) {
           console.error("Choices generation failed:", err);
           break;
         }
       }
       if (!choices || choices.length === 0) {
-        console.log("Choices call failed — using fallback choices");
+        // QUALITY GATE: a prefetched branch must have REAL scene-specific choices
+        // — if we couldn't get them, skip caching it (don't poison the cache with
+        // generic choices). A live read instead degrades to a usable fallback.
+        if (prefetch) return NextResponse.json({ prefetched: false, reason: "choices-quality" });
+        console.log("Choices call failed — using fallback choices for live read");
         choices = fallbackChoices(chapterNo);
       }
     }
@@ -248,6 +268,10 @@ export async function POST(request: Request) {
     if (cacheError) {
       console.error("Cache insert error:", cacheError);
     }
+
+    // Prefetch only needed to warm the cache; the branch is now ready for the
+    // real request when the reader picks this choice.
+    if (prefetch) return NextResponse.json({ prefetched: true });
 
     return NextResponse.json({
       chapter: {
