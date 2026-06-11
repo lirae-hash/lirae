@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { generateText } from "@/lib/gemini/client";
 import { buildChapterPrompt, buildChoicesPrompt, parseChapterResponse, looksTruncated, fallbackChoices } from "@/lib/dna/prompt";
@@ -252,8 +252,13 @@ export async function POST(request: Request) {
       console.log("Speaker:", cardQuoteSpeaker);
     }
 
-    // Cache the chapter
-    const { error: cacheError } = await supabase.from("chapters_cache").insert({
+    // Cache the chapter with the SERVICE ROLE. chapters_cache is a shared,
+    // non-user cache, but its RLS only allows authenticated inserts — so without
+    // this, anonymous readers (and all prefetch) silently failed to cache and
+    // every read re-generated live. (upsert keeps concurrent prefetch branches
+    // from colliding on the unique key.)
+    const cacheDb = await createServiceClient();
+    const { error: cacheError } = await cacheDb.from("chapters_cache").upsert({
       adventure_id: playthrough.adventure_id,
       chapter_no: chapterNo,
       vibe: playthrough.vibe,
@@ -263,7 +268,7 @@ export async function POST(request: Request) {
       prose,
       choices,
       scene_image_url: sceneImageUrl,
-    });
+    }, { onConflict: "adventure_id,chapter_no,vibe,spice,archetype,path_hash" });
 
     if (cacheError) {
       console.error("Cache insert error:", cacheError);
