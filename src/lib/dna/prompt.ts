@@ -186,15 +186,21 @@ ${renderContinuity(choiceLog)}
 == OUTPUT FORMAT ==
 Write the chapter prose in SECOND PERSON, PRESENT TENSE. The reader IS the protagonist — always "you," never "she." ("You feel him before you see him. He looks up. His eyes find yours.")
 
-**CRITICAL PAGE-TURNER RULES:**
-1. OPEN IN MOTION — Start with dialogue, conflict, or a sharp question. No establishing description first. Hook the reader in the first line.
-2. BANTER OVER DESCRIPTION — Readers stay for the voices. More sharp dialogue exchanges, more subtext, less atmosphere.
-3. END ON AN OPEN LOOP — The last line of the chapter MUST leave something unresolved. A question unanswered, a word unsaid, a look that demands interpretation. Make them NEED the next chapter.
+**THE #1 RULE — DIALOGUE IS THE ENGINE OF THIS CHAPTER:**
+This is a romance. The reader falls for him through what he SAYS. A chapter that is mostly atmospheric description with little dialogue reads as lifeless AI filler — never write that.
+- DIALOGUE-FORWARD: roughly 40–60% of this chapter must be spoken exchange, with AT LEAST 6–8 lines of real dialogue. He MUST speak — several back-and-forth exchanges in this chapter, never just one line.
+- HIS LINES ARE HIS CHARACTER: write his speech in his archetype's distinct voice (see the LOVE INTEREST ARCHETYPE above — its wit, restraint, deflection, or heat). Every line he says carries subtext. She should be able to fall for him from his dialogue alone.
+- SHE GIVES AS GOOD AS SHE GETS: her lines are sharp, specific, and alive — she is not a passive listener. The conversation is the battlefield of the enemies-to-lovers arc; let them spar, deflect, and land hits on each other.
+- RATION DESCRIPTION HARD: at most 1–2 short atmospheric beats in the whole chapter, and fold them INTO the action or something she notices mid-conversation (his hands, a glance, the heat of the room) — NEVER a standalone descriptive paragraph. Spend the words on exchange and her interior reaction, not on the room.
+
+**ALSO:**
+1. OPEN IN MOTION — start on a line of dialogue or a sharp beat of action, never an establishing description of the setting.
+2. END ON AN OPEN LOOP — the last line MUST leave something unresolved: a question unanswered, a word unsaid, a look that demands interpretation. Make them NEED the next chapter.
 
 Your job is to fulfill the emotional beat above — when the beat is complete, the chapter is done. But always end on a hook, never a resolution.
 
 ${beat.hasChoices
-    ? `Write the COMPLETE scene: deliver every fixed element listed above and bring the beat all the way to its charged, unresolved moment before you end. Do NOT stop at the setup or backstory — he must be present and the tension must be live by the final line. Aim for a full chapter (roughly 4–8 paragraphs), ending on the open-loop hook that puts the next move in her hands.
+    ? `Write the COMPLETE scene, CARRIED BY THEIR CONVERSATION: deliver every fixed element listed above through what they say and do, and bring the beat all the way to its charged, unresolved moment before you end. Do NOT stop at the setup or backstory — he must be present and SPEAKING, and the tension must be live by the final line. Aim for a full, dialogue-driven chapter (roughly 4–8 paragraphs, the majority of it spoken exchange), ending on the open-loop hook that puts the next move in her hands.
 
 IMPORTANT: Output ONLY the chapter prose. Do NOT write any reader choices, numbered or bulleted options, "You could…" lines, or a "What do you do?" prompt. The choices are generated separately — end on the hook and stop.`
     : "This chapter has no choices — end on the emotional beat itself. Deliver the full scene (roughly 4–8 paragraphs), not just the setup."}
@@ -223,6 +229,15 @@ export function looksTruncated(prose: string): boolean {
   const t = prose.trim();
   if (t.length < MIN_CHAPTER_CHARS) return true;
   return !/[.!?…—"”'’*)\]]$/.test(t);
+}
+
+// Count spoken lines of dialogue (paired double-quotes, curly or straight). The
+// reader feedback is that chapters read as flat description — a chapter must be
+// dialogue-forward, so we gate on a minimum number of spoken utterances.
+export const MIN_DIALOGUE_LINES = 6;
+export function countDialogueLines(prose: string): number {
+  const doubleQuotes = (prose.match(/[“”„‟«»"]/g) || []).length;
+  return Math.floor(doubleQuotes / 2);
 }
 
 // Deterministic fallback choices from the beat's stance descriptions. Used when

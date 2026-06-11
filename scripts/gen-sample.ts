@@ -7,7 +7,7 @@ import * as dotenv from "dotenv";
 import path from "path";
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 import { getSetting } from "../src/lib/dna/settings";
-import { buildChapterPrompt, buildChoicesPrompt, parseChapterResponse, looksTruncated } from "../src/lib/dna/prompt";
+import { buildChapterPrompt, buildChoicesPrompt, parseChapterResponse, looksTruncated, countDialogueLines } from "../src/lib/dna/prompt";
 import type { ChoiceLogEntry } from "../src/types/database";
 
 const KEY = process.env.GEMINI_API_KEY!;
@@ -40,7 +40,7 @@ async function main() {
   const cp = buildChoicesPrompt(prose, params);
   for (let a = 0; cp && !choices && a < 3; a++) choices = parseChapterResponse(await gen(model, cp)).choices;
 
-  console.log(`\n===== MODEL: ${model} | ${id} ch${ch} (${vibe}/${spStr}/${arche}) | ${prose.length} chars | truncated=${looksTruncated(prose)} =====\n`);
+  console.log(`\n===== MODEL: ${model} | ${id} ch${ch} (${vibe}/${spStr}/${arche}) | ${prose.length} chars | ${countDialogueLines(prose)} dialogue lines | truncated=${looksTruncated(prose)} =====\n`);
   console.log(prose);
   console.log("\n----- CHOICES -----");
   (choices || []).forEach((c: { tag: string; text: string }) => console.log(`  [${c.tag}] ${c.text}`));

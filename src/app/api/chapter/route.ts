@@ -1,7 +1,7 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { generateText } from "@/lib/gemini/client";
-import { buildChapterPrompt, buildChoicesPrompt, parseChapterResponse, looksTruncated, fallbackChoices } from "@/lib/dna/prompt";
+import { buildChapterPrompt, buildChoicesPrompt, parseChapterResponse, looksTruncated, fallbackChoices, countDialogueLines, MIN_DIALOGUE_LINES } from "@/lib/dna/prompt";
 import { getSetting } from "@/lib/dna/settings";
 import crypto from "crypto";
 import type { ChoiceLogEntry, Vibe, SpiceLevel, HeroArchetype } from "@/types/database";
@@ -205,15 +205,25 @@ export async function POST(request: Request) {
     let cardQuote: string | null = null;
     let cardQuoteSpeaker: string | null = null;
     let choices: ReturnType<typeof parseChapterResponse>["choices"] = null;
+    let bestDialogue = -1;
     for (let attempt = 0; attempt < 3 && Date.now() < deadline; attempt++) {
       try {
         const parsed = parseChapterResponse(await generateText(buildChapterPrompt(promptParams), { deadline }));
-        prose = parsed.prose;
-        cardQuote = parsed.cardQuote;
-        cardQuoteSpeaker = parsed.cardQuoteSpeaker;
-        choices = parsed.choices;
-        if (prose && !looksTruncated(prose)) break;
-        console.log(`Prose truncated/short (attempt ${attempt + 1}/3), regenerating`);
+        if (!parsed.prose || looksTruncated(parsed.prose)) {
+          console.log(`Prose truncated/short (attempt ${attempt + 1}/3), regenerating`);
+          continue;
+        }
+        const dialogue = countDialogueLines(parsed.prose);
+        // Keep the best (most dialogue) full-length attempt as the fallback.
+        if (dialogue > bestDialogue) {
+          bestDialogue = dialogue;
+          prose = parsed.prose;
+          cardQuote = parsed.cardQuote;
+          cardQuoteSpeaker = parsed.cardQuoteSpeaker;
+          choices = parsed.choices;
+        }
+        if (dialogue >= MIN_DIALOGUE_LINES) break; // passes the dialogue gate
+        console.log(`Prose has only ${dialogue} dialogue lines (<${MIN_DIALOGUE_LINES}), regenerating`);
       } catch (err) {
         console.error(`Prose generation attempt ${attempt + 1}/3 failed:`, err);
       }
@@ -222,6 +232,11 @@ export async function POST(request: Request) {
       // QUALITY GATE: never cache/serve a short or truncated chapter.
       if (prefetch) return NextResponse.json({ prefetched: false, reason: "prose-quality" });
       throw new Error("Chapter generation is temporarily unavailable");
+    }
+    // Prefetch/warm must clear the dialogue bar to be cached; a live read serves
+    // the best attempt even if it fell slightly short (don't dead-end the reader).
+    if (prefetch && bestDialogue < MIN_DIALOGUE_LINES) {
+      return NextResponse.json({ prefetched: false, reason: "dialogue-quality" });
     }
 
     // Choices come from a separate focused call, within the same deadline.

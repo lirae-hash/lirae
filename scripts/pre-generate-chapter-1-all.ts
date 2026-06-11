@@ -14,7 +14,7 @@ import crypto from "crypto";
 import WebSocket from "ws";
 
 import { getSetting } from "../src/lib/dna/settings";
-import { buildChapterPrompt, buildChoicesPrompt, parseChapterResponse, looksTruncated } from "../src/lib/dna/prompt";
+import { buildChapterPrompt, buildChoicesPrompt, parseChapterResponse, looksTruncated, countDialogueLines, MIN_DIALOGUE_LINES } from "../src/lib/dna/prompt";
 import type { Vibe, SpiceLevel, HeroArchetype, ChoiceLogEntry } from "../src/types/database";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -100,12 +100,16 @@ async function generateAndCache(adventureId: string, vibe: Vibe, spice: SpiceLev
   // never cached, so the cache only ever holds good chapters.
   let prose = "";
   let choices = null;
+  let bestDialogue = -1;
   for (let attempt = 0; attempt < 3; attempt++) {
     const parsed = parseChapterResponse(await generateText(buildChapterPrompt(params)));
-    prose = parsed.prose; choices = parsed.choices;
-    if (prose && !looksTruncated(prose)) break;
+    if (!parsed.prose || looksTruncated(parsed.prose)) continue;
+    const d = countDialogueLines(parsed.prose);
+    if (d > bestDialogue) { bestDialogue = d; prose = parsed.prose; choices = parsed.choices; }
+    if (d >= MIN_DIALOGUE_LINES) break;
   }
   if (!prose || looksTruncated(prose)) { console.error(`  [skip:prose] ${key} (short/truncated)`); return "error"; }
+  if (bestDialogue < MIN_DIALOGUE_LINES) { console.error(`  [skip:dialogue] ${key} (${bestDialogue} lines)`); return "error"; }
 
   const choicesPrompt = buildChoicesPrompt(prose, params);
   for (let attempt = 0; choicesPrompt && (!choices || choices.length === 0) && attempt < 3; attempt++) {
