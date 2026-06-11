@@ -194,10 +194,10 @@ Write the chapter prose in SECOND PERSON, PRESENT TENSE. The reader IS the prota
 Your job is to fulfill the emotional beat above — when the beat is complete, the chapter is done. But always end on a hook, never a resolution.
 
 ${beat.hasChoices
-    ? `End the chapter on the open-loop hook above — a charged, unresolved moment that puts the next move in her hands.
+    ? `Write the COMPLETE scene: deliver every fixed element listed above and bring the beat all the way to its charged, unresolved moment before you end. Do NOT stop at the setup or backstory — he must be present and the tension must be live by the final line. Aim for a full chapter (roughly 4–8 paragraphs), ending on the open-loop hook that puts the next move in her hands.
 
 IMPORTANT: Output ONLY the chapter prose. Do NOT write any reader choices, numbered or bulleted options, "You could…" lines, or a "What do you do?" prompt. The choices are generated separately — end on the hook and stop.`
-    : "This chapter has no choices — end on the emotional beat itself."}
+    : "This chapter has no choices — end on the emotional beat itself. Deliver the full scene (roughly 4–8 paragraphs), not just the setup."}
 ${chapterNo === 10 ? `
 == SHAREABLE CARD QUOTE ==
 After the prose, on a new line, provide a single memorable quote from this chapter for the reader's shareable ending card.
@@ -214,12 +214,14 @@ No headings, no preamble, no meta-commentary. Just the chapter prose${chapterNo 
   return prompt;
 }
 
-// The model occasionally stops mid-sentence (a truncated generation). A clean
-// chapter always ends on sentence-ending punctuation (or a closing quote / em
-// dash / italic marker). If it doesn't, treat it as truncated and regenerate.
+// A chapter is unusable if it was cut off mid-sentence (no sentence-ending
+// punctuation) OR if it's implausibly short — the model occasionally stops at
+// the setup/backstory (~1k chars) before the beat is actually delivered. Real
+// chapters run ~2.3k–6k chars; regenerate anything well under that.
+const MIN_CHAPTER_CHARS = 1500;
 export function looksTruncated(prose: string): boolean {
   const t = prose.trim();
-  if (t.length < 200) return true; // implausibly short = truncated
+  if (t.length < MIN_CHAPTER_CHARS) return true;
   return !/[.!?…—"”'’*)\]]$/.test(t);
 }
 
