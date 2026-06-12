@@ -15,10 +15,8 @@ import WebSocket from "ws";
 
 import { getSetting } from "../src/lib/dna/settings";
 import { buildChapterPrompt, buildChoicesPrompt, parseChapterResponse, looksTruncated, countDialogueLines, MIN_DIALOGUE_LINES } from "../src/lib/dna/prompt";
+import { generateText } from "../src/lib/gemini/client";
 import type { Vibe, SpiceLevel, HeroArchetype, ChoiceLogEntry } from "../src/types/database";
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,49 +29,6 @@ const SPICE_LEVELS: SpiceLevel[] = [1, 2, 3];
 const ARCHETYPES: HeroArchetype[] = ["brooding", "cinnamon", "rogue", "protector", "tortured", "golden"];
 const CHAPTER_NO = 1;
 const PATH_HASH = crypto.createHash("sha256").update(JSON.stringify([])).digest("hex").slice(0, 16);
-
-async function generateText(prompt: string): Promise<string> {
-  const MAX_RETRIES = 3;
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.9, topK: 40, topP: 0.95, maxOutputTokens: 4096, thinkingConfig: { thinkingBudget: 0 } },
-            safetySettings: [
-              { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
-              { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
-              { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
-              { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
-            ],
-          }),
-        }
-      );
-      if (!res.ok) {
-        if ([429, 500, 502, 503, 504].includes(res.status) && attempt < MAX_RETRIES - 1) {
-          await new Promise((r) => setTimeout(r, Math.min(1000 * 2 ** attempt, 10000)));
-          continue;
-        }
-        throw new Error(`Gemini ${res.status}`);
-      }
-      const data = await res.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) {
-        if (attempt < MAX_RETRIES - 1) { await new Promise((r) => setTimeout(r, 1500)); continue; }
-        throw new Error("Empty response");
-      }
-      return text;
-    } catch (e) {
-      if (attempt < MAX_RETRIES - 1) { await new Promise((r) => setTimeout(r, 1500)); continue; }
-      throw e;
-    }
-  }
-  throw new Error("Max retries exceeded");
-}
 
 function sceneUrl(adventureId: string, vibe: string): string {
   return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scene-images/${adventureId}/arrival_${vibe}.png`;
