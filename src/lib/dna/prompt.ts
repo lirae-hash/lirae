@@ -1,5 +1,32 @@
 import type { SpiceLevel, Vibe, ChoiceLogEntry, HeroArchetype } from "@/types/database";
-import { getVoiceRules, READER_GUIDELINES, SPICE_RULES, VIBE_RULES, ARCHETYPE_RULES, getBeat, type Beat } from "./enemies-to-lovers";
+import { getVoiceRules, HEROINE_VOICE, STYLE_REFERENCE, READER_GUIDELINES, SPICE_RULES, VIBE_RULES, ARCHETYPE_RULES, getBeat, type Beat } from "./enemies-to-lovers";
+
+// CRAFT — the front-loaded rules that decide whether a chapter reads as living
+// fiction or AI slop. Kept at the very top of the prompt (before the beat/setting
+// machinery) so the model treats dialogue + characterization as the job, not a
+// constraint it averages away. Addresses the specific reader feedback: "who is
+// this man?", "too focused on his body", "her behavior doesn't make sense."
+const CRAFT_RULES = `== HOW TO WRITE THIS CHAPTER — READ FIRST (this overrides any pull toward description) ==
+
+THE ENGINE IS DIALOGUE. This is a romance; the reader falls for him through what he SAYS and how she answers. A chapter that is mostly atmosphere with a few clipped lines reads as lifeless AI filler — the single biggest complaint. Concretely, THIS chapter must:
+- Be carried by a real conversation: roughly 40–60% of the words are spoken exchange.
+- Give HIM at least 5 spoken moments, and at least 3 of them two or more sentences — he has a point of view and he presses it. Never reduce him to one-word grunts.
+- Let HER answer every time — sharp, specific, alive. The conversation is the battlefield of the enemies-to-lovers arc: they spar, deflect, and land hits. She gives as good as she gets.
+- Carry subtext in every exchange — what they don't say is where the heat lives.
+
+CHARACTERIZATION (this is what "who is this man?" and "her behavior doesn't make sense" were about):
+- HE IS A PERSON, NOT A MOOD. He wants something in this scene and argues for it; he is specific and capable of surprising her. The reader should finish the chapter able to say who he is from his words alone.
+- DESIRE, NOT CATALOGUE. Noticing him physically is part of the appeal — keep it. The test is whether the description does emotional work: is it filtered through HER reaction, her history, her wanting? "His forearms are more than you remembered" is good — it's about her noticing, her memory, her pull. What to CUT is neutral inventory: standalone sweeps that list his features like a dating profile with no charge — "the light catches the sharp angles of his jaw, the slight shadow of stubble." Desire = keep. Catalogue = cut. When in doubt, anchor the physical detail to what it stirs in her.
+- THE HEROINE HAS AGENCY. She observes sharply, judges, decides, and drives the scene. She is never a camera pointed at an attractive man — the spark is two formidable people sparring, not one hot guy and one admirer.
+- BEHAVIORAL COHERENCE. Every action by either character must follow from who they are (his archetype and her disposition, both given below). No one acts out of character to serve the plot.
+
+RATION DESCRIPTION HARD. At most 1–2 short atmospheric beats in the whole chapter, and fold them INTO the action or something she notices mid-conversation — never a standalone descriptive paragraph. Spend the words on exchange and her interior reaction, not on the room.
+
+DON'T NARRATE THE TENSION — DRAMATIZE IT. The charge between them must come through in what they say and don't say, not in narration announcing it. Cut atmospheric throat-clearing like "the air crackles," "the air thrums," "the tension was palpable," "electricity sparked between you." If the dialogue is doing its job, you never have to tell the reader the room is charged — they feel it. Let the exchange carry it.
+
+THE BEAT IS NOT AN EXCUSE TO STOP TALKING. Some beats below are built around a private or wordless moment — you witness him unguarded, you discover something alone, a near-touch. That moment is the SETUP: keep it to a beat or two, then get the two of you face to face, because the chapter's spine is still the charged CONVERSATION that the moment provokes. Never spend the bulk of a chapter on silent observation or interior monologue — bring him on-page and talking, and let what just happened live in what you now say (and don't say) to each other.
+
+DO NOT REPRODUCE THIS PROMPT. Every example, illustrative line, or quoted passage anywhere in these instructions is a STYLE REFERENCE to emulate — never text to copy. Do not lift any example sentence into the chapter. Write fresh prose every time.`;
 
 interface SettingData {
   heroName: string;
@@ -150,6 +177,12 @@ CRITICAL: You MUST incorporate her actual words into the scene. Have her speak t
 
   const prompt = `You are generating Chapter ${beat.number} of a Lirae interactive romance.${endingGuidance}
 
+${CRAFT_RULES}
+
+${HEROINE_VOICE}
+
+${STYLE_REFERENCE}
+
 == STORY DNA (fixed rules — always apply) ==
 Trope: Enemies-to-Lovers
 Beat ${beat.number} — "${beat.name}"
@@ -184,16 +217,7 @@ Choices you have made so far:
 ${renderChoiceLog(choiceLog)}
 ${renderContinuity(choiceLog)}
 == OUTPUT FORMAT ==
-Write the chapter prose in SECOND PERSON, PRESENT TENSE. The reader IS the protagonist — always "you," never "she." ("You feel him before you see him. He looks up. His eyes find yours.")
-
-**THE #1 RULE — DIALOGUE IS THE ENGINE OF THIS CHAPTER:**
-This is a romance. The reader falls for him through what he SAYS. A chapter that is mostly atmospheric description with little dialogue reads as lifeless AI filler — never write that.
-- DIALOGUE-FORWARD: roughly 40–60% of this chapter must be spoken exchange, with AT LEAST 6–8 lines of real dialogue. He MUST speak — several back-and-forth exchanges in this chapter, never just one line.
-- HIS LINES ARE HIS CHARACTER: write his speech in his archetype's distinct voice (see the LOVE INTEREST ARCHETYPE above — its wit, restraint, deflection, or heat). Every line he says carries subtext. She should be able to fall for him from his dialogue alone.
-- SHE GIVES AS GOOD AS SHE GETS: her lines are sharp, specific, and alive — she is not a passive listener. The conversation is the battlefield of the enemies-to-lovers arc; let them spar, deflect, and land hits on each other.
-- RATION DESCRIPTION HARD: at most 1–2 short atmospheric beats in the whole chapter, and fold them INTO the action or something she notices mid-conversation (his hands, a glance, the heat of the room) — NEVER a standalone descriptive paragraph. Spend the words on exchange and her interior reaction, not on the room.
-
-**ALSO:**
+Write the chapter prose in SECOND PERSON, PRESENT TENSE — always "you," never "she" (the POV rules above govern this). Remember the craft rules at the top: this chapter is carried by dialogue, not description.
 1. OPEN IN MOTION — start on a line of dialogue or a sharp beat of action, never an establishing description of the setting.
 2. END ON AN OPEN LOOP — the last line MUST leave something unresolved: a question unanswered, a word unsaid, a look that demands interpretation. Make them NEED the next chapter.
 
@@ -231,13 +255,69 @@ export function looksTruncated(prose: string): boolean {
   return !/[.!?…—"”'’*)\]]$/.test(t);
 }
 
-// Count spoken lines of dialogue (paired double-quotes, curly or straight). The
-// reader feedback is that chapters read as flat description — a chapter must be
-// dialogue-forward, so we gate on a minimum number of spoken utterances.
-export const MIN_DIALOGUE_LINES = 6;
+// Count spoken lines of dialogue (paired double-quotes, curly or straight).
+// Kept for the offline sample scripts only — NOT the production gate. It's
+// fakeable: a chapter that is 90% description but sprinkles short quoted
+// fragments passes it, which is exactly the AI-slop output readers complained
+// about. The real gate is passesDialogueGate() below.
 export function countDialogueLines(prose: string): number {
   const doubleQuotes = (prose.match(/[“”„‟«»"]/g) || []).length;
   return Math.floor(doubleQuotes / 2);
+}
+
+const DOUBLE_QUOTE = /[“”„‟«»"]/g;
+function countWords(s: string): number {
+  return (s.trim().match(/\S+/g) || []).length;
+}
+
+export interface DialogueStats {
+  // Share of the chapter's words that are spoken inside double-quotes. This is
+  // the real "how dialogue-forward is this" number the 40–60% target refers to.
+  wordSharePct: number;
+  // Quoted spans of >= 3 words. A "substantive turn" is real back-and-forth, as
+  // opposed to a one-word fragment or an emphasis-quote that games a pair count.
+  substantiveTurns: number;
+}
+
+export function analyzeDialogue(prose: string): DialogueStats {
+  const marks = [...prose.matchAll(DOUBLE_QUOTE)];
+  let dlgWords = 0;
+  let substantiveTurns = 0;
+  for (let i = 0; i + 1 < marks.length; i += 2) {
+    const span = prose.slice(marks[i].index! + 1, marks[i + 1].index!);
+    const w = countWords(span);
+    dlgWords += w;
+    if (w >= 3) substantiveTurns++;
+  }
+  const total = countWords(prose) || 1;
+  return { wordSharePct: Math.round((dlgWords / total) * 100), substantiveTurns };
+}
+
+// Dialogue load SHOULD vary by beat. Beats 1 (arrival), 5 (the almost),
+// 9 (surrender) and 10 (resolution) are intentionally atmospheric/physical —
+// beat 1's DNA literally ends "before any real conversation." The rest are
+// conversation-driven. A flat threshold would wrongly punish the atmospheric
+// beats and trigger endless regeneration on the talky ones.
+//
+// CALIBRATION: the gate is primarily the substantive-TURN count, which cleanly
+// separates good chapters (12–15 back-and-forth turns in samples) from slop
+// (3–5). Word-share is a secondary floor only — it guards against "8 clipped
+// fragments buried in description" without demanding the 40–60% the PROMPT asks
+// for, which this model never actually reaches (max observed ~38%, even on the
+// confrontation beat). We aim the model high and gate at the realistic floor.
+const ATMOSPHERIC_BEATS = new Set([1, 5, 9, 10]);
+function dialogueBar(chapterNo: number): { minWordShare: number; minTurns: number } {
+  return ATMOSPHERIC_BEATS.has(chapterNo)
+    ? { minWordShare: 8, minTurns: 4 }
+    : { minWordShare: 15, minTurns: 8 };
+}
+
+// THE production quality gate. A chapter is dialogue-forward enough when it
+// clears its beat's spoken-word share AND has enough real back-and-forth.
+export function passesDialogueGate(prose: string, chapterNo: number): boolean {
+  const { wordSharePct, substantiveTurns } = analyzeDialogue(prose);
+  const bar = dialogueBar(chapterNo);
+  return wordSharePct >= bar.minWordShare && substantiveTurns >= bar.minTurns;
 }
 
 // Deterministic fallback choices from the beat's stance descriptions. Used when
