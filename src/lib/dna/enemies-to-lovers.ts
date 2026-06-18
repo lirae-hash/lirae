@@ -22,64 +22,57 @@ export const TROPE_LABEL = "Enemies to Lovers";
 
 export function getVoiceRules(heroName: string): string {
   return `
-**POV: SECOND PERSON. The reader IS the protagonist. This is the most important rule.**
+== POV — SECOND PERSON, PRESENT TENSE (the core mechanic) ==
+The reader IS the protagonist. Write to "you," never "she." The love interest (${heroName}) is "he." Present tense throughout, for immediacy.
+- Stay inside your head — we feel what you feel: the awareness, the irritation, the pull you don't want to admit to.
+- Do NOT assign "you" inner reactions her choices haven't earned (no "your heart melts," no "you didn't know why you felt this way"). Give the situation and the sensory moment richly; leave her response open enough for the reader to fill in.
+- Use her name only if one was provided, and only in others' dialogue. If none was given, never invent one — others address her by role.
 
-Write in second person, present tense: "You feel him before you see him." Never "she." The reader is not watching a character — she *is* the character. Every chapter is addressed to "you."
+His character (baseline — his specific manner comes from his archetype and this world, not fixed here): ${heroName} has done something that hurt you, and he knows it. Whether he regrets it is the question the story slowly answers. Call him ${heroName} and nothing else.
 
-- Use **"you" / "your"** throughout. The love interest (${heroName}) is "he."
-- **Present tense** — it heightens the you-are-here immediacy. ("He looks up. His eyes find yours.")
-- Stay inside *your* head — the reader's. We feel what you feel: the awareness, the irritation, the pull you don't want to admit to.
-- **Never assign the reader a fixed personality or fixed inner reactions that her choices haven't earned.** Give her the *situation* and *sensory experience* richly; leave her interpretation and response open enough that her choices fill them in.
-- **Use her name sparingly and only if she provided one.** If a protagonist name exists, others address her by it in dialogue. If no name, never invent one — others address her by role or simply speak to her.
+Prose register: real, adult, emotionally precise — think Emily Henry or Sally Thorne. Not YA, not purple, not overwrought. The restraint is what makes it land. (See the STYLE REFERENCE near the top for the exact target register.)
 
-**Who "you" are (the frame, not the personality):**
-You are good at what you do — genuinely, provably good — and a little tired of having to prove it. You've been underestimated before. You don't shrink and you don't flinch easily. Beneath that, you want things you don't say out loud.
-
-**His character (baseline — his specific manner is set by his archetype and this adventure's world, NOT fixed here):**
-The love interest is ${heroName}. He has done something that hurt you, and he knows it. Whether he regrets it is the question the adventure slowly answers. How he carries himself — controlled, warm, charming, dangerous — is defined by his archetype and the setting below; let those shape his voice and behavior. His name is ${heroName} and only ${heroName} — never call him by any other name.
-
-**Prose style reference:** Write like Emily Henry or Colleen Hoover — real, adult, emotionally precise. Not YA. Not purple. Not overwrought. The restraint is what makes it hit.
-
-== PAGE-TURNER MECHANICS (critical for reader retention) ==
-
-**CHAPTER OPENINGS — Start in motion, not description:**
-- Open on conflict, dialogue, or a sharp question — NOT an establishing shot
-- Drop the reader into the charged moment. Backfill context after you've hooked them.
-- First line should create immediate tension or curiosity
-- BAD: "The kitchen is quiet in the late afternoon light..."
-- GOOD: "He's already watching when you walk in."
-
-**CHAPTER ENDINGS — Every chapter must end on an OPEN LOOP:**
-- The last line should make the reader NEED the next chapter
-- End on: an unanswered question, something unsaid, a door opening, a line that demands response
-- Never resolve the chapter's tension before the choice — leave something dangling
-- BAD: "You walk away, feeling settled."
-- GOOD: "He says your name. Just your name. And doesn't say anything else."
-
-**DIALOGUE AND BANTER — This is where readers stay:**
-- More sharp exchanges, less description. Readers stay for the voices.
-- Subtext > text. What they DON'T say is where the heat lives.
-- Let them spar. Let them deflect. Let the dialogue crackle.
-- Every exchange should have an undercurrent — flirtation, challenge, or wound.
-
-**INTERNAL VOICE — Sharp, specific, a little defensive:**
-- Your internal reactions should be wry, specific, contradictory
-- Not just "you notice his hands" but a sharp thought about noticing
-- Let her be funny. Let her be defensive. Let her catch herself.
-- "You hate that you noticed. You hate more that you're still noticing."
-
-**What to avoid:**
-- Slipping into "she" — you are always "you"
-- Slipping into past tense — stay present
-- Describing the reader's own appearance (she can't see herself)
-- Assigning inner feelings her choices haven't earned ("you felt your heart melt") — show the moment, let her feel it
-- "You didn't know why you felt this way" (you do)
-- Telling the reader how to feel ("it was electrifying")
-- Dialogue that exists only to explain backstory
-- Opening with pure atmosphere/description before anything happens
-- Ending a chapter on resolution instead of an open loop
+== AVOID (these read as AI slop) ==
+- Slipping into "she," or into past tense.
+- Describing the reader's own appearance (she can't see herself).
+- Telling the reader how to feel ("it was electrifying"), or naming feelings her choices haven't earned.
+- Re-describing the same physical tic (his eyes, her lip). Notice something new each time.
+- Dialogue that exists only to dump backstory.
+- Opening on atmosphere before anything happens; ending on resolution instead of an open loop.
 `;
 }
+
+// HEROINE VOICE & DISPOSITION — the fixed narrative LENS the whole story is told
+// through. This is deliberately NOT a backstory or a fixed identity: the
+// protagonist is always second-person "you" and the reader projects herself onto
+// her. What this pins down is only her VOICE and DISPOSITION — the consistent way
+// she perceives, thinks, and acts — so "you" stays coherent across all ten
+// chapters the way a novelist's character sheet keeps a narrator consistent.
+// Fed into every generation, exactly like the hero archetype.
+export const HEROINE_VOICE = `
+== HEROINE VOICE & DISPOSITION (the lens — fixed every chapter, never contradicted) ==
+"You" are not a blank camera, and not a fixed character with a biography — you are a *way of seeing*. The reader brings her own identity; you supply the voice and disposition the whole story is told through. Hold these constant in every chapter:
+
+- PERCEPTIVE & OBSERVANT. You read people and rooms fast — you catch the tell he didn't mean to show, the shift in the air, the thing under what was said. Your noticing is a skill, not passivity.
+- INTERIORITY WITH ATTITUDE. Your inner voice is wry, specific, and opinionated — never neutral scene-painting. You have takes. You're a little defensive, quick to judge, quicker to catch yourself judging, and you can be funny about it.
+- AGENCY. You act ON situations; you don't just react to him. You make moves, set terms, push back, decide. You are one of two formidable people in the scene — never an admirer pointed at an attractive man.
+- PSYCHOLOGICALLY COHERENT. Everything you do follows from this disposition. You never go soft, swoony, or passive in a way this lens wouldn't — if he moves you, it still sounds like you.
+
+This is the FLOOR, not a fixed personality. The four traits above stay constant in every story — but the TEXTURE of your voice (how dry or warm, how fast or watchful, how openly combative) takes its color from THIS setting and from the man you're up against (his archetype, below). The heroine in a high-rise acquisition sparring with a brooding rival does not sound like the heroine in a small mountain town up against a steady protector. Be recognizably yourself within this one story; do not be the same woman in every story.
+`;
+
+// LABELED style reference — included so the model can match the REGISTER
+// (confident heroine who runs the scene, description that characterizes HER
+// taste and wit, real banter). It is shown ONLY as a tonal target; the prompt
+// is emphatic that its words must never be reproduced.
+export const STYLE_REFERENCE = `
+== STYLE REFERENCE — emulate this REGISTER, never copy these words ==
+The passage below is published fiction (Sally Thorne, "99 Percent Mine"), shown ONLY as a tonal target. Do NOT reuse its words, phrasing, names, or situations — study HOW it works and write something entirely your own:
+
+  "Nobody taught me this when I first started as a bartender, but luckily, I was a quick learner: When a group of men are walking in, you should work out which one is the alpha. […] 'We must go to the same barber, because you're looking real pretty, too. Now, order something or get out.' […] I imagine a Ken doll left out in the sun too long, and I step on that soft tan head like it's a cigarette. 'Not for a million years.' […] The light hits his face in a shadowless beige pan of color, and he's nothing that could interest me. I'm a face snob. It's all about the shadows."
+
+WHY this is the target: her voice has attitude; she runs the scene and wins the exchange; and when she describes the man ("a Ken doll left out in the sun"), the description characterizes HER taste and wit, not his measurements. That is the register every chapter should hit.
+`;
 
 // Romance-reader research, distilled. Applies to EVERY chapter of EVERY adventure.
 export const READER_GUIDELINES = `
