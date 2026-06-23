@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Outfit } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { AuthAnalytics } from "@/components/AuthAnalytics";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -30,6 +31,8 @@ export default function RootLayout({
     <html lang="en" className={`${fraunces.variable} ${outfit.variable}`}>
       <body className="min-h-screen bg-near-black text-cream antialiased">
         {children}
+        {/* PostHog identify + signup_completed funnel event (IDs only). */}
+        <AuthAnalytics />
         {/* Vercel Web Analytics — page-view/navigation only (no custom events,
             no story content, no reader free-text). Privacy-safe for 18+ content. */}
         <Analytics />

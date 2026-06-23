@@ -7,6 +7,7 @@ import { toPng } from "html-to-image";
 import { AgeGate } from "@/components/AgeGate";
 import { Paywall } from "@/components/Paywall";
 import { createClient } from "@/lib/supabase/client";
+import { track } from "@/lib/analytics";
 import { getAdventureCard } from "@/lib/adventures";
 
 // Archetype display names
@@ -93,6 +94,7 @@ function SignInModal({
         throw error;
       }
       console.log("Magic link sent successfully");
+      track("signup_started", { source: "reader_modal" });
       setEmailSent(true);
     } catch (err) {
       console.error("Sign-in error:", err);
@@ -798,6 +800,16 @@ export default function ReaderPage() {
       setShowSignIn(false);
       setChapter(data.chapter);
 
+      // Funnel: reader reached a chapter. Chapter number is the key drop-off
+      // signal; story prose is never sent.
+      track("chapter_viewed", {
+        chapter: data.chapter.number,
+        adventure_id: pt.adventure_id,
+        vibe: pt.vibe,
+        archetype: pt.archetype,
+        spice: pt.spice,
+      });
+
       // Warm the next chapter's branches in the background
       prefetchBranches(pt, data.chapter);
     } catch (err) {
@@ -884,6 +896,13 @@ export default function ReaderPage() {
         }
         throw new Error(data.error || "Failed to submit choice");
       }
+
+      // Funnel: reader engaged with a choice. Tag only ("open"/"guarded") —
+      // never the choice text.
+      track("choice_made", {
+        from_chapter: chapter?.number ?? playthrough?.current_chapter,
+        choice_tag: choice.tag,
+      });
 
       setPlaythrough(data.playthrough);
       setChapter(null);

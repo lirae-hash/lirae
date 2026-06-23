@@ -22,6 +22,9 @@ export async function GET(request: NextRequest) {
     });
     if (!error) {
       redirectTo.searchParams.delete("next");
+      // Signal the client that auth just completed so <AuthAnalytics> can fire
+      // the signup_completed funnel event + identify the user. Stripped on read.
+      redirectTo.searchParams.set("auth", "confirmed");
       return NextResponse.redirect(redirectTo);
     }
   }

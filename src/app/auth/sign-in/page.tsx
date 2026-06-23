@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { signInWithMagicLink } from "../actions";
+import { track } from "@/lib/analytics";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -25,6 +26,7 @@ export default function SignInPage() {
       setError(result.error);
       setIsLoading(false);
     } else {
+      track("signup_started", { source: "sign_in_page" });
       router.push("/auth/check-email");
     }
   }

@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { AgeGate } from "@/components/AgeGate";
 import { getAdventureCard } from "@/lib/adventures";
+import { track } from "@/lib/analytics";
 import type { Vibe, SpiceLevel, HeroArchetype } from "@/types/database";
 
 // Smart defaults — a new reader can start with zero choices.
@@ -76,6 +77,13 @@ export default function AdventureSetupPage() {
       if (data.anonymousToken) {
         localStorage.setItem(`lirae_anon_${data.playthrough.id}`, data.anonymousToken);
       }
+      // Funnel: a reader committed to a story. Settings only — no name/prose.
+      track("adventure_started", {
+        adventure_id: adventureId,
+        vibe: overrides?.vibe ?? vibe,
+        spice: overrides?.spice ?? spice,
+        archetype: overrides?.archetype ?? archetype,
+      });
       router.push(`/read/${data.playthrough.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
