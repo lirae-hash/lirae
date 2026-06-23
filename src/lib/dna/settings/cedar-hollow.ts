@@ -83,6 +83,5 @@ export const CEDAR_HOLLOW: SettingSheet & {
     "NO miscommunication-as-plot. The distance between you came from a real, understandable choice Eli made (his dying father) — never a dumb misunderstanding one honest sentence would fix.",
     "Small-town texture everywhere: everyone knows your business — the diner, the hardware store, the festival, the lake, the gossip.",
     "He is rooted and steady; let his love show in what he does, not speeches — until the porch, where he finally says it.",
-    "Cedar Hollow is a character: pines, deep water, fog, the dock, the old library, the smell of rain on cedar.",
   ],
 };

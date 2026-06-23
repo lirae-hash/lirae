@@ -24,6 +24,8 @@ RATION DESCRIPTION HARD. At most 1–2 short atmospheric beats in the whole chap
 
 DON'T NARRATE THE TENSION — DRAMATIZE IT. The charge between them must come through in what they say and don't say, not in narration announcing it. Cut atmospheric throat-clearing like "the air crackles," "the air thrums," "the tension was palpable," "electricity sparked between you." If the dialogue is doing its job, you never have to tell the reader the room is charged — they feel it. Let the exchange carry it.
 
+REVEAL THE SITUATION THROUGH DIALOGUE, NOT EXPOSITION. The backstory, the history between them, the stakes, the shape of the current situation — surface these through what the two of them SAY to each other, never through narrator paragraphs that explain. The same facts should arrive as charged exchanges — needled, accused, teased, demanded, questioned — weapons inside their argument, loaded with subtext, instead of separate informational paragraphs. This does three jobs at once: less exposition, more dialogue, and deeper characterization — because HOW he reveals a thing (what he leads with, what he withholds, how he twists the knife) shows the reader who he is. CRITICAL FAILURE MODE — "As you know, Bob": never have characters woodenly recite things they both already know just to inform the reader. Real people do not explain to each other what they both already lived. Every fact must come out naturally — through conflict, flirtation, or a real question one of them actually has — and every line must do double duty: advance the scene AND deliver the fact.
+
 THE BEAT IS NOT AN EXCUSE TO STOP TALKING. Some beats below are built around a private or wordless moment — you witness him unguarded, you discover something alone, a near-touch. That moment is the SETUP: keep it to a beat or two, then get the two of you face to face, because the chapter's spine is still the charged CONVERSATION that the moment provokes. Never spend the bulk of a chapter on silent observation or interior monologue — bring him on-page and talking, and let what just happened live in what you now say (and don't say) to each other.
 
 DO NOT REPRODUCE THIS PROMPT. Every example, illustrative line, or quoted passage anywhere in these instructions is a STYLE REFERENCE to emulate — never text to copy. Do not lift any example sentence into the chapter. Write fresh prose every time.`;
@@ -218,7 +220,7 @@ ${renderChoiceLog(choiceLog)}
 ${renderContinuity(choiceLog)}
 == OUTPUT FORMAT ==
 Write the chapter prose in SECOND PERSON, PRESENT TENSE — always "you," never "she" (the POV rules above govern this). Remember the craft rules at the top: this chapter is carried by dialogue, not description.
-1. OPEN IN MOTION — start on a line of dialogue or a sharp beat of action, never an establishing description of the setting.
+1. OPEN IN MOTION — start on EITHER a line of dialogue / a sharp beat of action, OR her sharp interior voice with attitude (a take on this moment, not scene-painting). NEVER an establishing description of the setting. Concretely: the FIRST sentence must not be a sensory impression of the place or your arrival into it — do NOT open with "The smell of X hits you," "The room/library smelled of…," "The [door/lights/air] …," or "[the door] swung shut behind you." If place or weather appears at all, it comes LATER, glimpsed between lines of the exchange — never as the way in.
 2. END ON AN OPEN LOOP — the last line MUST leave something unresolved: a question unanswered, a word unsaid, a look that demands interpretation. Make them NEED the next chapter.
 
 Your job is to fulfill the emotional beat above — when the beat is complete, the chapter is done. But always end on a hook, never a resolution.
@@ -293,11 +295,14 @@ export function analyzeDialogue(prose: string): DialogueStats {
   return { wordSharePct: Math.round((dlgWords / total) * 100), substantiveTurns };
 }
 
-// Dialogue load SHOULD vary by beat. Beats 1 (arrival), 5 (the almost),
-// 9 (surrender) and 10 (resolution) are intentionally atmospheric/physical —
-// beat 1's DNA literally ends "before any real conversation." The rest are
-// conversation-driven. A flat threshold would wrongly punish the atmospheric
-// beats and trigger endless regeneration on the talky ones.
+// Dialogue load SHOULD vary by beat. Beats 5 (the almost), 9 (surrender) and
+// 10 (resolution) are intentionally atmospheric/physical. Beat 1 USED to be
+// here too — its DNA ended "before any real conversation" — but the arrival
+// beat was rewritten to open on contact and reveal the situation through a live
+// spar, so it now holds the full conversation bar (new ch1 samples run
+// 29–45% / 13–15 turns, well above it). A flat threshold would wrongly punish
+// the remaining atmospheric beats and trigger endless regeneration on the talky
+// ones.
 //
 // CALIBRATION: the gate is primarily the substantive-TURN count, which cleanly
 // separates good chapters (12–15 back-and-forth turns in samples) from slop
@@ -305,7 +310,7 @@ export function analyzeDialogue(prose: string): DialogueStats {
 // fragments buried in description" without demanding the 40–60% the PROMPT asks
 // for, which this model never actually reaches (max observed ~38%, even on the
 // confrontation beat). We aim the model high and gate at the realistic floor.
-const ATMOSPHERIC_BEATS = new Set([1, 5, 9, 10]);
+const ATMOSPHERIC_BEATS = new Set([5, 9, 10]);
 function dialogueBar(chapterNo: number): { minWordShare: number; minTurns: number } {
   return ATMOSPHERIC_BEATS.has(chapterNo)
     ? { minWordShare: 8, minTurns: 4 }
